@@ -39,7 +39,7 @@ library(stringr)
       )) %>%
     select(AREA, YEAR, MONTH, TYPE, ESTIMATE, STANDARD_ERROR,SURVEY ) %>% 
     group_by(AREA, YEAR, MONTH, TYPE, SURVEY) %>% 
-    summarise(ESTIMATE = sum(ESTIMATE),STANDARD_ERROR = sum(STANDARD_ERROR)) %>%  
+    summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE),STANDARD_ERROR = sum(STANDARD_ERROR, na.rm = TRUE)) %>%  
     filter(AREA %notin% c("Area 20 (West)", "Area 20 (East)") ) %>% 
     left_join(arealu[, c("AREA", "LU_GROUPING3")]) %>% 
     rename(SDCREEL = STANDARD_ERROR, DISPOSITION = TYPE, CREEL = ESTIMATE)
@@ -74,7 +74,7 @@ library(stringr)
   ireccc <- irecall %>%
     select(c(AREA, YEAR, MONTH, DISPOSITION, ESTIMATE, VARIANCE, LU_GROUPING3)) %>%
     group_by(AREA, YEAR, MONTH, DISPOSITION, LU_GROUPING3) %>%
-    summarise(ESTIMATE = sum(ESTIMATE), VARIANCE = sum(VARIANCE)) %>%
+    summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE), VARIANCE = sum(VARIANCE, na.rm = TRUE)) %>%
     mutate(SD = sqrt(VARIANCE)) %>%
     select(c(!VARIANCE)) %>%
     rename(IREC = ESTIMATE, SDIREC = SD)
