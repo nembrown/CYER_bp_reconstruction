@@ -1,19 +1,28 @@
+
+# Combining creel and iREC data for updating catch database and CNR/.psl file
+
 library(tidyverse)
 library(readxl)
 library(openxlsx)
-
-# Combining creel and iREC data for updating catch database and CNR/.psl file
 
 setwd("~/ANALYSIS/data")
 
 creel.raw <- read_excel("2021 Creel Catch.xlsx", sheet="Export Worksheet")
 irec.boat.raw <- read_excel("2021 iREC Catch.xlsx", sheet="Angling from boat")       # angling from boat = marine, you want this!
 #irec.shore.raw <- read_excel("2021 iREC Catch.xlsx", sheet="Angling from Shore")    # don't want from shore - this is freshwater which you get from other sources
-
+bcfs.raw <- read_excel("BCFs across time.xlsx", sheet="Sheet1")
 
 ###################################################################################################################################################
 
 #                                                         CLEAN
+
+#----- Calibration factors 
+bcfs <- bcfs.raw %>% 
+  rename(year=`Licence Year`) %>%
+  filter(Species=="Chinook", year%in%c(2020,2021)) %>%
+  print()
+bcf_kept_2020 <- bcfs[bcfs]
+
 
 #----- Creel - roll up into PSC fisheries 
 creel <- creel.raw %>% 
@@ -25,10 +34,6 @@ creel <- creel.raw %>%
                                    AREA%in%c(19,29)~paste0(REGION), 
                                    AREA==20 ~ "JDF",
                                    AREA%in%c(21,22,23,24,25,26,27,121,122,123,124,125,126,127) ~ paste("WCVI", MANAGEMENT, sep=" ")),
-         #AREA%in%c(21,22,23,24) & MONTH%in%c(8,9) ~ "WCVI ISBM",
-         #AREA%in%c(25,26,27) & MONTH%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM",
-         #AREA%in%c() & MONTH%in%c(7,8,9) ~ "WCVI ISBM",
-         #AREA%in%c() ~ "WCVI AABM"),
          region_rollup = ifelse(region_rollup=="GS", "GST", region_rollup),
          excel_data_source = "2021 Creel Catch.xlsx") %>%
   mutate_at("AREA", as.character) %>%
@@ -37,15 +42,18 @@ creel <- creel.raw %>%
 
 #----- iREC boat data - change to match Creel headers, roll up into PSC fisheries 
 irec.boat <- irec.boat.raw %>% 
-  select(-c(`ESTIMATE`, Calibration)) %>%
   rename(DATASOURCE = METHOD,
          SPECIES_TXT = ITEM,
          MARKS_DESC = ADIPOSE_MODIFIER,
          TYPE = DISPOSITION,
          SUB_TYPE = RETAINABLE,
-         GRP = ITEM_GROUP,
-         iREC = `Catch Calibrated`) %>%
-  mutate(region_rollup = case_when(AREA%in%c("Area 1", "Area 2", "Area 2E", "Area 2W", "Area 3", "Area 4", "Area 5", "Area 101", "Area 102", 
+         GRP = ITEM_GROUP) %>%
+  mutate(calibration_factor = case_when(MONTH%in%c(1,2,3) & TYPE=="Kept" ~ bcfs[bcfs$Disposition=="Kept"&bcfs$year=="2020",]$BCF,
+                                        MONTH%in%c(1,2,3) & TYPE=="Released" ~ bcfs[bcfs$Disposition=="Released"&bcfs$year=="2020",]$BCF,
+                                        !MONTH%in%c(1,2,3) & TYPE=="Kept" ~ bcfs[bcfs$Disposition=="Kept"&bcfs$year=="2021",]$BCF,
+                                        !MONTH%in%c(1,2,3) & TYPE=="Released" ~ bcfs[bcfs$Disposition=="Released"&bcfs$year=="2021",]$BCF,),
+         iREC_cal = ESTIMATE/calibration_factor,
+         region_rollup = case_when(AREA%in%c("Area 1", "Area 2", "Area 2E", "Area 2W", "Area 3", "Area 4", "Area 5", "Area 101", "Area 102", 
                                              "Area 103", "Area 104", "Area 105", "Area 130", "Area 142") ~ "NBC",
                                    AREA%in%c("Area 6", "Area 7", "Area 8", "Area 9", "Area 10", "Area 106", "Area 107", "Area 108", "Area 109",
                                              "Area 110") ~ "CBC",
@@ -69,7 +77,8 @@ irec.boat <- irec.boat.raw %>%
          SOURCE = DATASOURCE,
          SPECIES_TXT2 = SPECIES_TXT,
          excel_data_source = "2021 iREC Catch.xlsx") %>%
-  mutate_at("YEAR", as.numeric)
+  mutate_at("YEAR", as.numeric) %>%
+  select(-c(calibration_factor, ESTIMATE))
 
 
 
@@ -78,11 +87,13 @@ irec.boat <- irec.boat.raw %>%
 #                                                            JOIN & SUMMARIZE
 
 #------ JOIN
+# Remove area 22 as it is not in the treaty 
 combo <- full_join(creel, irec.boat) %>%
   mutate(SUB_TYPE = case_when(SUB_TYPE%in%c("Legal Size (All or Lower)", "Legal Size (Upper)") ~ "LEGAL",
                               SUB_TYPE=="Sublegal Size"~"SUB-LEGAL",
                               TRUE ~ as.character(SUB_TYPE)),
-         estimate_cal = ifelse(is.na(iREC), CREEL, iREC)) %>%
+         estimate_cal = ifelse(is.na(iREC_cal), CREEL, iREC_cal)) %>%
+  filter(!AREA%in%c(22, "Area 22")) %>%
   print()
 
 
@@ -90,7 +101,7 @@ combo <- full_join(creel, irec.boat) %>%
 # To recreate the big pivot table (as seen in "2020 Combined Creel & iREC Catch.xlsx">"Pivot" )
 pivot_full <- combo %>%
   group_by(region_rollup, MONTH, TYPE) %>%
-  summarize(sum_creel = sum(CREEL,na.rm=T), sum_irec = sum(iREC,na.rm=T)) %>%
+  summarize(sum_creel = sum(CREEL,na.rm=T), sum_irec = sum(iREC_cal,na.rm=T)) %>%
   arrange(region_rollup, MONTH, TYPE) %>%
   print()
 
@@ -118,14 +129,24 @@ final_ests <- full_join(region_CREELS, region_iREC) %>%
 
 ###################################################################################################################################################
 
+#                                                                      METADATA 
+
+# Make lil metadata df to add to Excel export 
+meta <- data.frame(info = c(paste("created", Sys.time(), sep=" "), "combined in R"))
+
+
+###################################################################################################################################################
+
 #                                                                      EXPORT 
 
 combo.wkb <- createWorkbook()
 
+addWorksheet(combo.wkb, "metadata")
 addWorksheet(combo.wkb, "Combined data")
 addWorksheet(combo.wkb, "Pivot")
 addWorksheet(combo.wkb, "Summary")
 
+writeData(combo.wkb, sheet="metadata", x=meta)
 writeData(combo.wkb, sheet="Combined data", x=combo)
 writeData(combo.wkb, sheet="Pivot", x=pivot_full)
 writeData(combo.wkb, sheet="Summary", x=final_ests)
