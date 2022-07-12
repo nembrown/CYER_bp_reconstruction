@@ -105,9 +105,85 @@ creelcc <- creel_kris %>%
 creelcc <- creelcc %>% pivot_wider(names_from = ESTIMATE_SOURCE, values_from = CREEL) %>% rename(creel_in_fill_SC =`In Fill`, 
          logbook_estimate =`Log Estimate`) %>% mutate(creel_total = sum(Historic, Creel, creel_in_fill_SC, logbook_estimate, na.rm=TRUE))
 
+View(creel_nick)
+### try with nicks data
+creel_cnr_nick <- creel_nick %>%
+  rename(AREA_NUM = AREA, AREA = AREA_GROUP, ESTIMATE=VAL) %>%
+  select(AREA, SUBAREA, MANAGEMENT, YEAR, MONTH, TYPE,  DATASOURCE , ESTIMATE) %>% 
+  group_by(AREA, SUBAREA, MANAGEMENT, YEAR, MONTH, TYPE, DATASOURCE ) %>% 
+  summarise(ESTIMATE = sum(ESTIMATE, na.rm=TRUE)) %>%  
+  rename(DISPOSITION = TYPE, CREEL = ESTIMATE)
+
+creelcc_nick <- creel_cnr_nick %>% pivot_wider(names_from = DATASOURCE, values_from = CREEL) %>% rename(creel_in_fill_SC =`Creel in fill Estimate`, 
+                                                                                                lodge_reported_catch =`Lodge Reported Catch`, 
+                                                                                                Creel =`Creel Estimate`, 
+                                                                                                lodge_e_estimate =`Lodge E-Reported Catch`,
+                                                                                                log_estimate =`Log Estimate`, 
+                                                                                                lodge_estimate =`Lodge Estimate`) %>% mutate(creel_log_total = sum(lodge_reported_catch, Creel, creel_in_fill_SC, log_estimate, lodge_e_estimate,lodge_estimate, na.rm=TRUE), 
+                                                                                                                                             log_total = sum(lodge_estimate, log_estimate, lodge_e_estimate,lodge_estimate, na.rm=TRUE))
+names(creelcc_nick) <- tolower(names(creelcc_nick))
+
+#Just for completeness, I identify these other areas, but they don't get used in psl/cnr 
+#check that 107, 108, 109 are in treaty cbc
+treaty_cbc<-c("Area 10", "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 130", "Area 108", "Area 109", "Area 107")
+chelsea_cbc<-c("Area 10", "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 108", "Area 109", "Area 107")
+
+treaty_nbc_aabm<-c("Area 2","Area 1", "Area 101", "Area 102",  "Area 142", "Area 2E", "Area 2W",  "Area 130")
+chelsea_nbc_aabm<-c("Area 1", "Area 101", "Area 102",  "Area 2W")
+
+treaty_nbc_isbm<-c( "Area 103", "Area 104", "Area 105", "Area 3", "Area 4", "Area 5")
+chelsea_nbc_isbm<-c("Area 3", "Area 4", "Area 5")
+
+
+gst<-c("Area 13", "Area 14", "Area 15", "Area 16", "Area 17", "Area 18", "Area 19", "Area 19 (GS)", "Area 28", "Area 29") 
+jst<-c("Area 11", "Area 111", "Area 12")
+jdf<-c("Area 19", "Area 19 (JDF)", "Area 20", "Area 20 (East)", "Area 20 (West)")
+
+
+creelcc_nick<- creelcc_nick %>%  mutate(erafishery = case_when(
+                                         management == "AABM" & area%in%c("Area 121", "Area 123", "Area 124", "Area 125", "Area 126", "Area 127") ~ "WCVI AABM S",#this is in line with creel
+                                         management == "ISBM" & area%in%c("Area 121", "Area 123", "Area 124", "Area 125", "Area 126", "Area 127") ~ "WCVI ISBM S",#this is in line with creel
+                                         area%in%c("Area 21", "Area 24") & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",#this is correct, line in with creel
+                                         grepl("Area 23", area) & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S", #this is correct, line in with creel
+                                         area%in%c("Area 21", "Area 24") & month%in%c(8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+                                         grepl("Area 23", area) & month%in%c(8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+                                         area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S", #this is correct, in line in with creel
+                                         area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(7,8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+                                         area %in% chelsea_cbc~ "CBC S", 
+                                         area %in% treaty_nbc_aabm~ "NBC AABM S", 
+                                         area %in% treaty_nbc_isbm~ "NBC ISBM S", 
+                                         area %in% gst~ "GEO ST S",
+                                         area %in% jst~ "JNST S",
+                                         area %in% jdf~ "BC JF S"))
+
+creelcc_nick_erafishery<- creelcc_nick %>%  group_by(erafishery, year, month, disposition) %>% 
+                                            summarise(creel = sum(creel, na.rm=TRUE),
+                                                      lodge_reported_catch =  sum(lodge_reported_catch, na.rm=TRUE), 
+                                                      lodge_estimate = sum(lodge_estimate, na.rm=TRUE),
+                                                      lodge_e_estimate = sum(lodge_e_estimate, na.rm=TRUE),
+                                                      log_estimate = sum(log_estimate, na.rm=TRUE),
+                                                      creel_in_fill_sc = sum(creel_in_fill_sc, na.rm=TRUE),
+                                                      creel_log_total = sum(creel_log_total, na.rm=TRUE),
+                                                      log_total = sum(log_total, na.rm=TRUE))  
+                                          
+
+View(creelcc_nick_erafishery)
+
+
+creelcc_nick<- creelcc_nick %>%  group_by(area, erafishery, year, month, disposition) %>% 
+                                 summarise(creel = sum(creel, na.rm=TRUE),
+                                           lodge_reported_catch =  sum(lodge_reported_catch, na.rm=TRUE), 
+                                           lodge_estimate = sum(lodge_estimate, na.rm=TRUE),
+                                           lodge_e_estimate = sum(lodge_e_estimate, na.rm=TRUE),
+                                           log_estimate = sum(log_estimate, na.rm=TRUE),
+                                           creel_in_fill_sc = sum(creel_in_fill_sc, na.rm=TRUE),
+                                           creel_log_total = sum(creel_log_total, na.rm=TRUE),
+                                           log_total = sum(log_total, na.rm=TRUE))  
 
 #Edit IREC data
 #Area 29 (marine) is the same as Area 29 in the CREEL data, Remove in river fisheries
+irec <- read.csv(here::here("data/iRecchinook_2012_2021.csv"))
+
 irec <- irec %>% 
   filter(METHOD == "Angling from boat") %>% 
   mutate(AREA = case_when(AREA== "Area 29 (Marine)" ~ "Area 29", TRUE ~ AREA)) %>% 
@@ -119,8 +195,8 @@ irec <- irec %>%
 # if other variables are considered, need to include them here
 allobs <- expand.grid(list(
   AREA = unique(irec$AREA),
-  YEAR = unique(irec$YEAR),
-  MONTH = unique(irec$MONTH),
+  YEAR = c(2009:2021),
+  MONTH = c(1:12),
   DISPOSITION = unique(irec$DISPOSITION)
 ))
 
@@ -128,7 +204,6 @@ allobs <- expand.grid(list(
 irecall <- left_join(allobs, irec)
 irecall$ESTIMATE[is.na(irecall$ESTIMATE)] <- 0
 irecall$VARIANCE[is.na(irecall$VARIANCE)]<-0
-#irecall <- irecall %>% left_join(arealu[, c("AREA", "LU_GROUPING3")])
 
 ireccc <- irecall %>%
   select(c(AREA, YEAR, MONTH, DISPOSITION, ESTIMATE, VARIANCE)) %>%
@@ -138,44 +213,42 @@ ireccc <- irecall %>%
   select(c(!VARIANCE)) %>%
   rename(IREC = ESTIMATE, SDIREC = SD)
 
-#should we change this to June since there are 91% missing data in May for creel? Changed to 6 here
-irec_creel_merged <- merge(creelcc, ireccc, all=TRUE) %>% as_tibble() 
- # mutate(SEASON = if_else(MONTH < 6 | MONTH > 9, "offseason", "peakseason"))
 
-#take out SD
-irec_creel_merged <- irec_creel_merged  %>% select(-SDIREC)
+ireccc<- ireccc %>% mutate(erafishery = case_when(
+  AREA%in%c("Area 121", "Area 123", "Area 124") & MONTH%in% c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",#this is not quite right or in line with creel
+  AREA%in%c("Area 125", "Area 126", "Area 127") & MONTH%in% c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S",#this is not quite right or in line with creel
+  AREA%in%c("Area 121", "Area 123", "Area 124") & MONTH%in% c(8,9) ~ "WCVI ISBM S",#this is not quite right or in line with creel
+  AREA%in%c("Area 125", "Area 126", "Area 127") & MONTH%in% c(7,8,9) ~ "WCVI ISBM S",#this is not quite right or in line with creel
+  AREA%in%c("Area 21", "Area 24") & MONTH%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",#this is correct, line in with creel
+  grepl("Area 23", AREA) & MONTH%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S", #this is correct, line in with creel
+  AREA%in%c("Area 21", "Area 24") & MONTH%in%c(8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+  grepl("Area 23", AREA) & MONTH%in%c(8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+  AREA%in%c("Area 25", "Area 26", "Area 27") & MONTH%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S", #this is correct, in line in with creel
+  AREA%in%c("Area 25", "Area 26", "Area 27") & MONTH%in%c(7,8,9) ~ "WCVI ISBM S", #this is correct, line in with creel
+  AREA %in% chelsea_cbc~ "CBC S", 
+  AREA %in% treaty_nbc_aabm~ "NBC AABM S", 
+  AREA %in% treaty_nbc_isbm~ "NBC ISBM S", 
+  AREA %in% gst~ "GEO ST S",
+  AREA %in% jst~ "JNST S",
+  AREA %in% jdf~ "BC JF S")) %>% 
+  filter(AREA != "Area 22")
+
+names(ireccc) <- tolower(names(ireccc))
+
+ireccc1<- ireccc %>%  group_by(area, erafishery, year, month, disposition) %>% 
+                     summarise(irec = sum(irec, na.rm=TRUE)) %>% 
+                     filter(disposition == "Kept")
+
+ireccc_erafishery<- ireccc %>%   group_by(erafishery, year, month, disposition) %>% 
+  summarise(irec = sum(irec, na.rm=TRUE)) %>% 
+  filter(disposition == "Kept")
 
 
-names(irec_creel_merged) <- tolower(names(irec_creel_merged))
-irec_creel_merged
 
-View(irec_creel_merged)
+irec_creel_merged <- merge(creelcc_nick, ireccc1, all=TRUE) %>% as_tibble() 
 
-#Just for completeness, I identify these other areas, but they don't get used in psl/cnr 
-#treaty
-#check that 107, 108, 109 are in treaty cbc
-treaty_cbc<-c("Area 10", "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 130", "Area 108", "Area 109", "Area 107")
-treaty_nbc_aabm<-c("Area 2","Area 1", "Area 101", "Area 102",  "Area 142", "Area 2E", "Area 2W")
-treaty_nbc_isbm<-c( "Area 103", "Area 104", "Area 105", "Area 3", "Area 4", "Area 5")
-gst<-c("Area 13", "Area 14", "Area 15", "Area 16", "Area 17", "Area 18", "Area 19", "Area 19 (GS)", "Area 28", "Area 29") 
-jst<-c("Area 11", "Area 111", "Area 12")
-jdf<-c("Area 19", "Area 19 (JDF)", "Area 20", "Area 20 (East)", "Area 20 (West)")
+irec_creel_merged2 <- merge(creelcc_nick_erafishery, ireccc_erafishery, all=TRUE) %>% as_tibble() 
 
-
-irec_creel_merged<-irec_creel_merged%>% mutate(erafishery = case_when(
-                                        area%in%c("Area 121", "Area 122", "Area 123", "Area 124", "Area 125", "Area 126", "Area 127") ~ "WCVI AABM S",
-                                        area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
-                                        grepl("Area 23", area) & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
-                                        area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(8,9) ~ "WCVI ISBM S",
-                                        grepl("Area 23", area) & month%in%c(8,9) ~ "WCVI ISBM S",
-                                        area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S",
-                                        area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(7,8,9) ~ "WCVI ISBM S",
-                                        area %in% treaty_cbc~ "CBC S", 
-                                        area %in% treaty_nbc_aabm~ "NBC AABM S", 
-                                        area %in% treaty_nbc_isbm~ "NBC ISBM S", 
-                                        area %in% gst~ "GEO ST S",
-                                        area %in% jst~ "JNST S",
-                                        area %in% jdf~ "BC JF S"))
 
 irec_creel_merged1<- irec_creel_merged %>% mutate(licence.year= case_when(
                                        month > 3 ~ as.numeric(year),
@@ -183,34 +256,54 @@ irec_creel_merged1<- irec_creel_merged %>% mutate(licence.year= case_when(
 
 irec_creel_merged1<-merge(irec_creel_merged1, bcf_short, all=TRUE)%>% as_tibble()
 
+
+irec_creel_merged2 <-  irec_creel_merged2 %>% rename(irec2 = irec, creel_log_total2=creel_log_total) %>% 
+                                            mutate(licence.year= case_when(
+                                            month > 3 ~ as.numeric(year),
+                                            month < 4 ~ as.numeric(year - 1 )))
+
+irec_creel_merged2 <- merge(irec_creel_merged2, bcf_short, all=TRUE)%>% as_tibble()
+
 #create a pseudocreel_version1 - do this on an area by area basis
 irec_creel_merged_pseudo<-irec_creel_merged1 %>%  mutate(pseudocreel = case_when(
-                                                                      year > 2011 & month %in% c(5:9) & is.na(creel_total) ~ as.numeric(irec/bcf),
+                                                                      year > 2011 & month %in% c(5:9) & is.na(creel_log_total) ~ as.numeric(irec/bcf),
                                                                       year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
                                                                       year < 2012 ~  NA_real_,
-                                                                      TRUE ~ as.numeric(creel_total)))
+                                                                      TRUE ~ as.numeric(creel_log_total)))
 #### Summarise across year:
 irec_creel_merged_pseudo_sum_erafishery<- irec_creel_merged_pseudo %>% group_by(erafishery, year, disposition) %>% 
                                                                        summarise(creel_sum=ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)),
-                                                                                 historic_sum=ifelse(all(is.na(historic)), NA, sum(historic, na.rm=TRUE)),
-                                                                                 creel_total_sum=ifelse(all(is.na(creel_total)), NA, sum(creel_total, na.rm=TRUE)),
-                                                                                 logbook_sum=ifelse(all(is.na(logbook_estimate)), NA, sum(logbook_estimate, na.rm=TRUE)),
+                                                                                 log_total_sum=ifelse(all(is.na(log_total)), NA, sum(log_total, na.rm=TRUE)),
+                                                                                 creel_log_total_sum=ifelse(all(is.na(creel_log_total)), NA, sum(creel_log_total, na.rm=TRUE)),
+                                                                                 creel_infill_sum=ifelse(all(is.na(creel_in_fill_sc)), NA, sum(creel_in_fill_sc, na.rm=TRUE)),
                                                                                  irec_sum=ifelse(all(is.na(irec)), NA, sum(irec, na.rm=TRUE)),
-                                                                               #  creel_var_sum=ifelse(all(is.na(creel_var)), NA, sum(creel_var, na.rm=TRUE)),
-                                                                                # creel_sd_sum = sqrt(creel_var_sum),
                                                                                  pseudocreel_sum=ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE))) 
-                                                                                 #pseudocreel_var_sum=ifelse(all(is.na(pseudocreel_var)), NA, sum(pseudocreel_var, na.rm=TRUE)), 
-                                                                                 #pseudocreel_sd_sum=sqrt(pseudocreel_var_sum)) %>% 
-                                                                     #  select(-pseudocreel_var_sum, -creel_var_sum)
 
 
+###### katie's way
+#create a pseudocreel_version1 - do this on an area by area basis
+irec_creel_merged_pseudo2<-irec_creel_merged2 %>%  mutate(pseudocreel2 = case_when(
+                                                   year > 2011 & month %in% c(5:9) & is.na(creel_log_total2) ~ as.numeric(irec2/bcf),
+                                                   year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec2/bcf),
+                                                   year < 2012 ~  NA_real_,
+                                                   TRUE ~ as.numeric(creel_log_total2)))
+
+View(irec_creel_merged_pseudo2)
+#### Summarise across year:
+irec_creel_merged_pseudo_sum_erafishery2<- irec_creel_merged_pseudo2 %>% group_by(erafishery, year, disposition) %>% 
+                                                                         summarise(creel_log_total_sum2=ifelse(all(is.na(creel_log_total2)), NA, sum(creel_log_total2, na.rm=TRUE)),
+                                                                         irec_sum2=ifelse(all(is.na(irec2)), NA, sum(irec2, na.rm=TRUE)),
+                                                                         pseudocreel_sum2=ifelse(all(is.na(pseudocreel2)), NA, sum(pseudocreel2, na.rm=TRUE))) 
 
 
+irec_creel_merged_pseudo_sum_erafishery_3<- merge(irec_creel_merged_pseudo_sum_erafishery, irec_creel_merged_pseudo_sum_erafishery2, all=TRUE) %>% as_tibble()
+
+View(irec_creel_merged_pseudo_sum_erafishery_3)
 
 # CNR / PSL ---------------------------------------------------------------------
 
 #Either read in cnr here
-cnr<-read_excel(here::here("data/REAMCNRData.xlsx"))
+#cnr<-read_excel(here::here("data/REAMCNRData.xlsx"))
 
 #or open connection to CAMP
 fileName <- 'camp.config'
@@ -220,7 +313,7 @@ campdb <- dbConnect(odbc::odbc(),
                     .connection_string = conn_string)
 
 cnr<-tbl(campdb, "REAMCNRData")
-
+View(cnr)
 fishery.era<-tbl(campdb, "CAMPFisheryERA")
 fishery.era<- fishery.era %>% rename(ERAFishery = FisheryERAID)
 fishery.era
@@ -228,27 +321,50 @@ fishery.era
 cwdb<-tbl(campdb, "cwdbrecovery")%>% as_tibble()
 
 cnr<- merge(cnr, fishery.era) %>% as_tibble() %>% rename(erafishery=Name, year = ERAYear)
-cnr_canada_sport<- cnr %>% filter(erafishery %in% c("NBC AABM S", "NBC ISBM S", "CBC S", "WCVI AABM S", "WCVI ISBM S"))   
+cnr_canada_sport<- cnr %>% filter(erafishery %in% c("NBC AABM S", "NBC ISBM S", "CBC S", "WCVI AABM S", "WCVI ISBM S", "BC JF S", "GEO ST S", "JNST S"))   
 cnr_canada_sport<- cnr_canada_sport %>% rename(Kept = CNRValue1, Released= CNRValue2) %>% select(erafishery, year, Kept, Released) 
 cnr_canada_sport<- cnr_canada_sport %>% pivot_longer(cols=c("Kept", "Released"), names_to = "disposition", values_to = "cnr")
 cnr_canada_sport
+View(cnr_canada_sport)
+
+#cnr_canada_sport<- cnr_canada_sport %>% mutate(cnr_sd = 0)
+irec_creel_cnr<-merge(irec_creel_merged_pseudo_sum_erafishery_3, cnr_canada_sport, all=TRUE) %>% as_tibble()                                
+
+irec_creel_cnr<- irec_creel_cnr %>% pivot_longer(cols=contains(c("sum", "cnr")), names_to = "source", values_to = "values")  
+
+irec_creel_cnr<- irec_creel_cnr %>%  filter(year>2008)
+
+%>% filter(erafishery %in% c( "WCVI AABM S", "WCVI ISBM S")) %>% 
+View(irec_creel_cnr)
+#"NBC AABM S", "NBC ISBM S", "CBC S",
+View(irec_creel_cnr)
+
+pkept <- ggplot(irec_creel_cnr %>% filter(disposition=="Kept") ,aes(x=as.factor(year), y=values, color=source, group=source))
+pkept <- pkept + geom_point(size=3, alpha=.5) + facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+pkept
 
 
-cnr_canada_sport<- cnr_canada_sport %>% mutate(cnr_sd = 0)
-irec_creel_cnr<-merge(irec_creel_merged_pseudo_sum_erafishery, cnr_canada_sport, all=TRUE) %>% as_tibble()                                
+View(irec_creel_cnr)
+#katies
+pkept <- ggplot(irec_creel_cnr %>% filter(disposition=="Kept", source %in% c("irec_sum", "creel_log_total_sum", "cnr", "pseudocreel_sum", "pseudocreel_sum2")) ,aes(x=as.factor(year), y=values, color=source, shape=source, group=source))
+pkept <- pkept + geom_point(size=3, alpha=.5) + facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+pkept
 
-irec_creel_cnr<- irec_creel_cnr %>% pivot_longer(cols=c("creel_sum", "pseudocreel_sum","cnr"), names_to = "source", values_to = "values") %>%   
-                                    pivot_longer(cols=c("creel_sd_sum", "pseudocreel_sd_sum", "cnr_sd"), names_to = "sourcesd", values_to = "sd") %>% 
-                                    mutate(source_correct = case_when(
-                                          source == "creel_sum" & sourcesd =="creel_sd_sum" ~ "yes", 
-                                          source == "pseudocreel_sum" & sourcesd =="pseudocreel_sd_sum" ~ "yes", 
-                                          source == "cnr" & sourcesd =="cnr_sd" ~ "yes", 
-                                          TRUE ~ "no" )) %>% 
-                                    filter(source_correct == "yes") %>% 
-                                    select(-source_correct, -sourcesd)
+View(irec_creel_cnr)
 
-irec_creel_cnr<- irec_creel_cnr %>% filter(erafishery %in% c("NBC AABM S", "NBC ISBM S", "CBC S", "WCVI AABM S", "WCVI ISBM S")) %>% 
-                                    filter(year>2008)
+pkept <- ggplot(irec_creel_cnr %>% filter(disposition=="Kept", source %in% c("pseudocreel_sum", "pseudocreel_sum2")) ,aes(x=as.factor(year), y=values, color=source, shape=source, group=source))
+pkept <- pkept + geom_point(size=3, alpha=.5) + facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+pkept
+
+
+pkept <- ggplot(irec_creel_cnr %>% filter(disposition=="Kept", source %in% c("creel_log_total_sum", "creel_log_total_sum2")) ,aes(x=as.factor(year), y=values, color=source, shape=source, group=source))
+pkept <- pkept + geom_point(size=3, alpha=.5) + facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+pkept
+
+
+
+
+
 
 
 #Plots cnr
@@ -323,7 +439,14 @@ arealu <- read.csv(here::here("data/areaLU.csv"))
 ### proportion of unchecked mark
 
 unique(creel_nick$DATASOURCE)
-View(creel_nick)
+creel_nick
+
+
+
+creel_norah<- creel_nick %>% select(REGION2, REGION, AREA, SUBAREA, AREA_GROUP, MONTH, MANAGEMENT) %>% distinct()
+View(creel_norah)
+
+
 
 #try with Kris' data instead:
 creel_adipose_kris1 <- creel_kris %>%
