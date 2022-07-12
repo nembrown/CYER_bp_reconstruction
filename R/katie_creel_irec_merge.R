@@ -4,13 +4,12 @@
 library(tidyverse)
 library(readxl)
 library(openxlsx)
+library(here)
 
-setwd("~/ANALYSIS/data")
-
-creel.raw <- read_excel("2021 Creel Catch.xlsx", sheet="Export Worksheet")
-irec.boat.raw <- read_excel("2021 iREC Catch.xlsx", sheet="Angling from boat")       # angling from boat = marine, you want this!
+creel.raw <- read_excel(here::here("data/2021 Creel Catch.xlsx"), sheet="Export Worksheet")
+irec.boat.raw <- read_excel(here::here("data/2021 iREC Catch.xlsx"), sheet="Angling from boat")       # angling from boat = marine, you want this!
 #irec.shore.raw <- read_excel("2021 iREC Catch.xlsx", sheet="Angling from Shore")    # don't want from shore - this is freshwater which you get from other sources
-bcfs.raw <- read_excel("BCFs across time.xlsx", sheet="Sheet1")
+bcfs.raw <- read_excel(here::here("data/BCFs across time.xlsx"), sheet="Sheet1")
 
 ###################################################################################################################################################
 
@@ -38,6 +37,11 @@ creel <- creel.raw %>%
          excel_data_source = "2021 Creel Catch.xlsx") %>%
   mutate_at("AREA", as.character) %>%
   mutate_at("YEAR", as.numeric)
+
+creel_norah_katie<- creel %>%   group_by(region_rollup, MONTH, TYPE, DATASOURCE) %>%
+  summarize(sum_creel = sum(CREEL,na.rm=T))
+
+View(creel_norah_katie)
 
 
 #----- iREC boat data - change to match Creel headers, roll up into PSC fisheries 
@@ -96,6 +100,11 @@ combo <- full_join(creel, irec.boat) %>%
   filter(!AREA%in%c(22, "Area 22")) %>%
   print()
 
+View(combo)
+combo_norah<- combo  %>% select(region_rollup, AREA, SUBAREA, AREA_GROUP, MONTH, MANAGEMENT, excel_data_source) %>% distinct()
+View(combo_norah)
+
+
 
 #------ SUMMARIZE 
 # To recreate the big pivot table (as seen in "2020 Combined Creel & iREC Catch.xlsx">"Pivot" )
@@ -104,6 +113,8 @@ pivot_full <- combo %>%
   summarize(sum_creel = sum(CREEL,na.rm=T), sum_irec = sum(iREC_cal,na.rm=T)) %>%
   arrange(region_rollup, MONTH, TYPE) %>%
   print()
+
+View(pivot_full )
 
 # creel estimates given criteria (use creel for May-Sept)
 region_CREELS <- pivot_full %>%
