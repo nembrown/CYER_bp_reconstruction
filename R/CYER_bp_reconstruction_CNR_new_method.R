@@ -106,8 +106,13 @@ creelcc <- creelcc %>% pivot_wider(names_from = ESTIMATE_SOURCE, values_from = C
          logbook_estimate =`Log Estimate`) %>% mutate(creel_total = sum(Historic, Creel, creel_in_fill_SC, logbook_estimate, na.rm=TRUE))
 
 View(creel_nick)
-### try with nicks data
-creel_cnr_nick <- creel_nick %>%
+
+creel_full_catch <- read.csv(here::here("data/Creel_full_catch_starting_2009.csv")) %>% as_tibble()
+creel_full_catch_chinook<- creel_full_catch %>% filter(SPECIES_TXT2 == "Chinook", YEAR < 2022) 
+creel_full_catch_chinook
+
+### try with full catch data
+creel_cnr_nick <- creel_full_catch_chinook %>%
   rename(AREA_NUM = AREA, AREA = AREA_GROUP, ESTIMATE=VAL) %>%
   select(AREA, SUBAREA, MANAGEMENT, YEAR, MONTH, TYPE,  DATASOURCE , ESTIMATE) %>% 
   group_by(AREA, SUBAREA, MANAGEMENT, YEAR, MONTH, TYPE, DATASOURCE ) %>% 
@@ -156,6 +161,7 @@ creelcc_nick<- creelcc_nick %>%  mutate(erafishery = case_when(
                                          area %in% jst~ "JNST S",
                                          area %in% jdf~ "BC JF S"))
 
+#this needs to be run b4 line below - annoying i know i will change
 creelcc_nick_erafishery<- creelcc_nick %>%  group_by(erafishery, year, month, disposition) %>% 
                                             summarise(creel = sum(creel, na.rm=TRUE),
                                                       lodge_reported_catch =  sum(lodge_reported_catch, na.rm=TRUE), 
@@ -167,7 +173,7 @@ creelcc_nick_erafishery<- creelcc_nick %>%  group_by(erafishery, year, month, di
                                                       log_total = sum(log_total, na.rm=TRUE))  
                                           
 
-View(creelcc_nick_erafishery)
+
 
 
 creelcc_nick<- creelcc_nick %>%  group_by(area, erafishery, year, month, disposition) %>% 
@@ -334,7 +340,7 @@ irec_creel_cnr<- irec_creel_cnr %>% pivot_longer(cols=contains(c("sum", "cnr")),
 
 irec_creel_cnr<- irec_creel_cnr %>%  filter(year>2008)
 
-%>% filter(erafishery %in% c( "WCVI AABM S", "WCVI ISBM S")) %>% 
+#%>% filter(erafishery %in% c( "WCVI AABM S", "WCVI ISBM S")) %>% 
 View(irec_creel_cnr)
 #"NBC AABM S", "NBC ISBM S", "CBC S",
 View(irec_creel_cnr)
