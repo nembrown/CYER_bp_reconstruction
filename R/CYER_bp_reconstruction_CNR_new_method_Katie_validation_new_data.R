@@ -324,23 +324,45 @@ irec_creel_cnr_new_data_legal <- irec_creel_cnr_new_data %>%  filter(retainable 
 creel_only_cnr<- irec_creel_cnr_new_data_legal %>%   filter(erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S"), year > 2008, year<2022) %>%  select(erafishery, year, disposition, creel_log_total_sum) 
 creel_only_cnr<- creel_only_cnr %>%  pivot_wider(names_from = disposition, values_from = creel_log_total_sum)  %>% rename(CNRValue1_creel_only=Kept, CNRValue2_creel_only = Released)
 creel_only_cnr  
-View(creel_cnr)
+
 
 
 creel_cnr<- merge(creel_only_cnr, cnr_fishery, all=TRUE) %>%  as_tibble() %>%  
                                             mutate(CNRValue1 = case_when(
-                                                               year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S") & !is.na(CNRValue1_creel_only) ~ CNRValue1_creel_only, 
+                                                               year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S",  "CBC S") & !is.na(CNRValue1_creel_only) ~ CNRValue1_creel_only, 
                                                                TRUE ~ CNRValue1), 
                                                    CNRValue2 = case_when(
-                                                               year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S") & !is.na(CNRValue2_creel_only) ~ CNRValue2_creel_only, 
+                                                               year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S",  "CBC S") & !is.na(CNRValue2_creel_only) ~ CNRValue2_creel_only, 
                                                                TRUE ~ CNRValue2)) %>%
                                             rename(ERAYear = year) %>% 
                                             select(ERAFishery, ERAYear, CNRType, CNRValue1, CNRValue2, CNRValue3, CNRValue4, Remarks)
 
-### need monthly NBC data - could take out NBC from above just to get a working "creel only" 
+### need monthly NBC data - could take out NBC from above just to get a working "creel only" - 
+# took out NBC (both aabm and isbm from the above code - add back in when I get monthly estimates - until then cnr = the "creel only" estimate)
 
 anti_join(creel_cnr, cnr) %>% View()
 anti_join(cnr, creel_cnr) %>% View()
+
+
+### IREC plus creel = pesuedocreel
+pseudocreel_cnr<- irec_creel_cnr_new_data_legal %>%   filter(erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S"), year > 2008, year<2022) %>%  select(erafishery, year, disposition, pseudocreel_sum) 
+pseudocreel_cnr<- pseudocreel_cnr %>%  pivot_wider(names_from = disposition, values_from = pseudocreel_sum)  %>% rename(CNRValue1_pseudocreel=Kept, CNRValue2_pseudocreel = Released)
+pseudocreel_cnr 
+
+creel_with_irec_cnr<- merge(pseudocreel_cnr, cnr_fishery, all=TRUE) %>%  as_tibble() %>%  
+                                                          mutate(CNRValue1 = case_when(
+                                                            year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S") & !is.na(CNRValue1_pseudocreel) ~ CNRValue1_pseudocreel, 
+                                                            TRUE ~ CNRValue1), 
+                                                            CNRValue2 = case_when(
+                                                              year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S") & !is.na(CNRValue2_pseudocreel) ~ CNRValue2_pseudocreel, 
+                                                              TRUE ~ CNRValue2)) %>%
+                                                          rename(ERAYear = year) %>% 
+                                                          select(ERAFishery, ERAYear, CNRType, CNRValue1, CNRValue2, CNRValue3, CNRValue4, Remarks)
+
+anti_join(creel_with_irec_cnr, cnr)
+
+write.csv(creel_cnr, "creel_cnr.csv")
+write.csv(creel_with_irec_cnr, "creel_with_irec_cnr.csv")
 
 
 # Plotting ----------------------------------------------------------------
