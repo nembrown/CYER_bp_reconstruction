@@ -115,6 +115,189 @@ irec_creel_merged_adipose <- merge(creel_adipose_for_irec, ireccc_adipose, all=T
 
 
 
+# Section for looking at proportion of adipose, unchecked and non adipose -----------------------------------------------------------------
+
+creel_adipose_all <- creel_nick %>%
+  rename(AREA_NUM = AREA, AREA = AREA_GROUP, ESTIMATE=VAL) %>%
+  filter(DATASOURCE == "Creel Estimate") %>%
+  mutate(AREA = case_when(
+    YEAR == 2013 & MONTH > 4 & str_detect(AREA, "Area 20") ~ "Area 20", 
+    YEAR == 2014 & MONTH %in% c(3,6:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
+    YEAR %in% c(2015, 2016, 2018) & MONTH %in% c(6:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
+    YEAR %in% c(2017, 2019) & MONTH %in% c(5:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
+    YEAR == 2020 & MONTH < 4 & str_detect(AREA, "Area 20") ~ "Area 20",
+    YEAR <2014 & str_detect(AREA, "Area 23") ~ "Area 23", 
+    YEAR == 2014  & MONTH < 4 & str_detect(AREA, "Area 23") ~ "Area 23", 
+    YEAR <2014 & str_detect(AREA, "Area 19") ~ "Area 19", 
+    YEAR == 2014  & MONTH < 4 & str_detect(AREA, "Area 19") ~ "Area 19", 
+    YEAR <2014 & str_detect(AREA, "2E|2W") ~ "Area 2", 
+    YEAR == 2014 & MONTH < 4 & str_detect(AREA, "2E|2W") ~ "Area 2",
+    TRUE ~ as.character(AREA)
+  )) %>%
+  select(AREA, YEAR, MONTH, TYPE, ESTIMATE, MARKS_DESC) %>% 
+  group_by(AREA, YEAR, MONTH, TYPE, MARKS_DESC) %>% 
+  summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE)) %>%  
+  filter(AREA %notin% c("Area 20 (West)", "Area 20 (East)") ) %>% 
+  left_join(arealu[, c("AREA", "LU_GROUPING3")]) %>% 
+  rename(DISPOSITION = TYPE, CREEL = ESTIMATE, adipose=MARKS_DESC) %>% 
+  mutate(adipose = case_when(adipose == "Not Adipose Checked" ~ "Not_Adipose_Checked",
+                             adipose == "Adipose Marked" ~ "Adipose_Marked",
+                             adipose == "Not Applicable" ~ "Not_Applicable",
+                             adipose == "Not Adipose Marked" ~ "Not_Adipose_Marked",
+                             TRUE ~ adipose))
+
+irec_adipose_all <- irec %>% 
+  filter(METHOD == "Angling from boat") %>% 
+  mutate(AREA = case_when(AREA== "Area 29 (Marine)" ~ "Area 29", TRUE ~ AREA)) %>% 
+  filter(AREA != "Area 29 (In River)", YEAR > 2011) %>% 
+  mutate(ADIPOSE_MODIFIER = case_when(ADIPOSE_MODIFIER== "Not Checked" ~ "Not_Adipose_Checked",
+                                      ADIPOSE_MODIFIER== "Not Applicable" ~ "Not_Applicable",
+                                      ADIPOSE_MODIFIER== "Adipose Marked" ~ "Adipose_Marked",
+                                      ADIPOSE_MODIFIER== "Not Adipose Marked" ~ "Not_Adipose_Marked",
+                                      TRUE ~ ADIPOSE_MODIFIER)) %>% 
+  rename(adipose =ADIPOSE_MODIFIER) %>% as_tibble()
+
+
+# Expand Irec data
+# input 0s for missing observations on irec
+# create df for all possible observations - using variables of interest only
+# if other variables are considered, need to include them here
+allobs_adipose_all <- expand.grid(list(
+  AREA = unique(irec_adipose$AREA),
+  YEAR = unique(irec_adipose$YEAR),
+  MONTH = unique(irec_adipose$MONTH),
+  DISPOSITION = unique(irec_adipose$DISPOSITION), 
+  adipose = unique(irec_adipose_all$adipose)
+))
+
+
+#create zero observations, with 0 variance
+irecall_adipose_all <- left_join(allobs_adipose_all, irec_adipose_all)
+irecall_adipose_all$ESTIMATE[is.na(irecall_adipose_all$ESTIMATE)] <- 0
+irecall_adipose_all$VARIANCE[is.na(irecall_adipose_all$VARIANCE)]<-0
+irecall_adipose_all <- irecall_adipose_all %>% left_join(arealu[, c("AREA", "LU_GROUPING3")])
+
+ireccc_adipose_all <- irecall_adipose_all %>%
+  select(c(AREA, YEAR, MONTH, DISPOSITION, ESTIMATE, VARIANCE, LU_GROUPING3, adipose)) %>%
+  group_by(AREA, YEAR, MONTH, DISPOSITION, LU_GROUPING3, adipose) %>%
+  summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE), VARIANCE = sum(VARIANCE, na.rm = TRUE)) %>%
+  mutate(SD = sqrt(VARIANCE)) %>%
+  select(c(!VARIANCE)) %>%
+  rename(IREC = ESTIMATE, SDIREC = SD)
+
+
+### merge irec and creel adipose
+irec_creel_merged_adipose_all <- merge(creel_adipose_all, ireccc_adipose_all, all=TRUE) %>% as_tibble() 
+names(irec_creel_merged_adipose_all) <- tolower(names(irec_creel_merged_adipose_all ))
+irec_creel_merged_adipose_all <- rename(irec_creel_merged_adipose_all, region = lu_grouping3)
+irec_creel_merged_adipose_all
+
+
+
+irec_creel_merged_adipose_all<-irec_creel_merged_adipose_all%>% mutate(erafishery = case_when(
+  area%in%c("Area 121", "Area 122", "Area 123", "Area 124", "Area 125", "Area 126", "Area 127") ~ "WCVI AABM S",
+  area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
+  grepl("Area 23", area) & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
+  area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(8,9) ~ "WCVI ISBM S",
+  grepl("Area 23", area) & month%in%c(8,9) ~ "WCVI ISBM S",
+  area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S",
+  area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(7,8,9) ~ "WCVI ISBM S",
+  area %in% treaty_cbc~ "CBC S", 
+  area %in% treaty_nbc_aabm~ "NBC AABM S", 
+  area %in% treaty_nbc_isbm~ "NBC ISBM S", 
+  area %in% gst~ "GEO ST S",
+  area %in% jst~ "JNST S",
+  area %in% jdf~ "BC JF S"))
+
+
+irec_creel_merged_adipose_all_1<-  irec_creel_merged_adipose_all %>% mutate(licence.year= case_when(
+  month > 3 ~ as.numeric(year),
+  month < 4 ~ as.numeric(year - 1 )))
+irec_creel_merged_adipose_all_1<-merge( irec_creel_merged_adipose_all_1, bcf_short, all=TRUE)%>% as_tibble()
+
+
+
+#create a pseudocreel_version1 - do this on an area by area basis
+#no variation - took out those parts
+irec_creel_merged_adipose_all_pseudo<-irec_creel_merged_adipose_all_1 %>%  mutate(
+  #irec_var = sdirec ^ 2, 
+  # creel_var = sdcreel ^ 2, 
+  pseudocreel = case_when(
+    year > 2011 & month %in% c(5:9) & is.na(creel) ~ as.numeric(irec/bcf),
+    year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
+    year < 2012 ~  NA_real_,
+    TRUE ~ as.numeric(creel))
+  #, 
+  # pseudocreel_var = case_when(
+  #  month %in% c(5:9) & is.na(creel_var) ~ as.numeric(irec_var/bcf),
+  # month %in% c(1:4,10:12) ~ as.numeric(irec_var/bcf),
+  #TRUE ~ as.numeric(creel_var))
+)
+
+
+
+
+#### Summarise across year:
+irec_creel_merged_adipose_all_pseudo_sum_erafishery<- irec_creel_merged_adipose_all_pseudo %>% group_by(erafishery, year, disposition, adipose) %>% 
+  summarise(creel_sum=ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
+            # creel_var_sum=ifelse(all(is.na(creel_var)), NA, sum(creel_var, na.rm=TRUE)),
+            #  creel_sd_sum = sqrt(creel_var_sum),
+            pseudocreel_sum=sum(pseudocreel, na.rm = TRUE)
+            #, 
+            # pseudocreel_var_sum=sum(pseudocreel_var, na.rm = TRUE), 
+            #  pseudocreel_sd_sum=sqrt(pseudocreel_var_sum)
+  ) 
+#%>% 
+#  select(-pseudocreel_var_sum, -creel_var_sum)
+
+
+
+adipose_all_long<- irec_creel_merged_adipose_all_pseudo_sum_erafishery %>% pivot_longer(cols=c("creel_sum", "pseudocreel_sum"), names_to = "source", values_to = "values")
+
+adipose_all_long 
+
+adipose_kept <- ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="creel_sum") ,aes(x=as.factor(year), y=values, shape=source, color=adipose, group=adipose))
+adipose_kept <- adipose_kept + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+adipose_kept 
+
+adipose_kept <- ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="pseudocreel_sum") ,aes(x=as.factor(year), y=values, shape=source, color=adipose, group=adipose))
+adipose_kept <- adipose_kept + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+adipose_kept 
+
+
+
+adipose_all_wide<- irec_creel_merged_adipose_all_pseudo_sum_erafishery %>% pivot_wider(names_from = adipose, values_from = c(creel_sum, pseudocreel_sum))
+adipose_all_wide<-  adipose_all_wide %>% mutate(total_creel = creel_sum_Adipose_Marked +  creel_sum_Not_Adipose_Marked +  creel_sum_Not_Adipose_Checked, 
+                                                total_pseudocreel = pseudocreel_sum_Adipose_Marked +  pseudocreel_sum_Not_Adipose_Marked +  pseudocreel_sum_Not_Adipose_Checked, 
+                                                prop_creel_notchecked = creel_sum_Not_Adipose_Checked/total_creel, 
+                                                prop_pseudocreel_notchecked = pseudocreel_sum_Not_Adipose_Checked/total_pseudocreel,
+                                                prop_creel_marked = creel_sum_Adipose_Marked/total_creel, 
+                                                prop_pseudocreel_marked = pseudocreel_sum_Adipose_Marked/total_pseudocreel,
+                                                prop_creel_unmarked = creel_sum_Not_Adipose_Marked/total_creel, 
+                                                prop_pseudocreel_unmarked = pseudocreel_sum_Not_Adipose_Marked/total_pseudocreel
+)
+
+adipose_all_wide_long<- adipose_all_wide %>% pivot_longer(cols=contains("creel"), names_to = "variable", values_to = "values")
+adipose_all_wide_long_pseudo_prop<- adipose_all_wide_long %>% filter(variable %in% c("prop_pseudocreel_unmarked", "prop_pseudocreel_marked", "prop_pseudocreel_notchecked")) 
+adipose_all_wide_long_creel_prop<- adipose_all_wide_long %>% filter(variable %in% c("prop_creel_unmarked", "prop_creel_marked", "prop_creel_notchecked")) 
+
+#this plot is proportion of adipose kept changing over time? 
+adipose_kept_marked <- ggplot(adipose_all_wide_long_pseudo_prop ,aes(x=as.factor(year), y=values,  color=variable, group=variable ))
+adipose_kept_marked <- adipose_kept_marked + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
+adipose_kept_marked  
+
+
+
+ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="pseudocreel_sum") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery, scales="free") 
+
+ggplot(adipose_all_long %>% filter(disposition=="Kept") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery + source, scales="free") 
+
+ggplot(adipose_all_long %>% filter(disposition=="Released") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery + source, scales="free") 
+
+
+
+
+
 
 
 
