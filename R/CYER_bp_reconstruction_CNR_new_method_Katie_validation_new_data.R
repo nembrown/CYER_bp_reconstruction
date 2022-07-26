@@ -312,14 +312,13 @@ cnr_canada_sport$retainable<- "LEGAL"
 # Merge CNR with irec and creel -------------------------------------------
 
 irec_creel_cnr_new_data<-merge(irec_creel_merged_pseudo_sum_erafishery_3_new_data, cnr_canada_sport, all=TRUE) %>% as_tibble() %>% filter(year>2007)                        
-View( irec_creel_cnr_new_data)
 
 irec_creel_cnr_new_data<- irec_creel_cnr_new_data %>% mutate(cnr_diff = cnr - cnr_recreated)
 
 irec_creel_cnr_plot_new_data<- irec_creel_cnr_new_data %>% pivot_longer(cols=contains(c("sum", "cnr")), names_to = "source", values_to = "values")  
 
 
-# Merge back to CNR 
+# CNR Creel only NEW METHOD
 irec_creel_cnr_new_data_legal <- irec_creel_cnr_new_data %>%  filter(retainable == "LEGAL")
 creel_only_cnr<- irec_creel_cnr_new_data_legal %>%   filter(erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S"), year > 2008, year<2022) %>%  select(erafishery, year, disposition, creel_log_total_sum) 
 creel_only_cnr<- creel_only_cnr %>%  pivot_wider(names_from = disposition, values_from = creel_log_total_sum)  %>% rename(CNRValue1_creel_only=Kept, CNRValue2_creel_only = Released)
@@ -361,7 +360,28 @@ creel_with_irec_cnr<- merge(pseudocreel_cnr, cnr_fishery, all=TRUE) %>%  as_tibb
 
 anti_join(creel_with_irec_cnr, cnr)
 
+
+#CNR IREC and creel CURRENT METHOD
+irec_creel_cnr_new_data_legal <- irec_creel_cnr_new_data %>%  filter(retainable == "LEGAL")
+creel_with_irec_cnr_current<- irec_creel_cnr_new_data_legal %>%   filter(erafishery %in% c("WCVI AABM S", "WCVI ISBM S", "NBC AABM S", "NBC ISBM S", "CBC S"), year > 2008, year<2022) %>%  select(erafishery, year, disposition, cnr_recreated) 
+creel_with_irec_cnr_current<- creel_with_irec_cnr_current %>%  pivot_wider(names_from = disposition, values_from = cnr_recreated)  %>% rename(CNRValue1_creel_only=Kept, CNRValue2_creel_only = Released)
+creel_with_irec_cnr_current  
+
+
+
+creel_with_irec_cnr_current <- merge(creel_with_irec_cnr_current, cnr_fishery, all=TRUE) %>%  as_tibble() %>%  
+                               mutate(CNRValue1 = case_when(
+                                 year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S",  "CBC S") & !is.na(CNRValue1_creel_only) ~ CNRValue1_creel_only, 
+                                 TRUE ~ CNRValue1), 
+                                 CNRValue2 = case_when(
+                                   year %in% c(2009:2021) & erafishery %in% c("WCVI AABM S", "WCVI ISBM S",  "CBC S") & !is.na(CNRValue2_creel_only) ~ CNRValue2_creel_only, 
+                                   TRUE ~ CNRValue2)) %>%
+                               rename(ERAYear = year) %>% 
+                               select(ERAFishery, ERAYear, CNRType, CNRValue1, CNRValue2, CNRValue3, CNRValue4, Remarks)
+
+
 write.csv(creel_cnr, "creel_cnr.csv")
+write.csv(creel_with_irec_cnr_current, "creel_with_irec_cnr_current.csv")
 write.csv(creel_with_irec_cnr, "creel_with_irec_cnr.csv")
 
 
