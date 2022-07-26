@@ -239,9 +239,9 @@ irec_creel_merged1_new_data<-merge(irec_creel_merged1_new_data, bcf_short, all=T
 irec_creel_merged_pseudo_new_data<-irec_creel_merged1_new_data %>%  mutate(pseudocreel = case_when(
                                                   year > 2011 & month %in% c(5:9) & (is.na(creel_log_total)| creel_log_total ==0) ~ as.numeric(irec/bcf),
                                                   year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
-                                                  year < 2012 ~  NA_real_,
+                                                  year < 2013 ~  as.numeric(creel_log_total),
                                                   TRUE ~ as.numeric(creel_log_total)))
-View(irec_creel_merged_pseudo_new_data)
+
 #### Summarize across year:
 irec_creel_merged_pseudo_sum_erafishery_new_data<- irec_creel_merged_pseudo_new_data %>% group_by(erafishery, year, disposition, retainable) %>% 
                                                                        summarise(historic_sum=ifelse(all(is.na(historic)), NA, sum(historic, na.rm=TRUE)),
