@@ -363,7 +363,9 @@ irec_creel_merged_adipose_pseudo_region<- irec_creel_merged_adipose_pseudo_regio
 View(mrp_rec_recoveries )
 #### load in mrp data
 #mrp_recoveries<-getDfoTagRecoveries(2009:2022)
-fishery_lookup_simple<-mrp_rec_recoveries %>% select(region, area, psc_fishery_id, area_name) %>% distinct()
+fishery_lookup_simple<-mrp_rec_recoveries %>% select(region, recovery_year, area, psc_fishery_id, area_name) %>% distinct()
+
+
 
 #heads
 mrp_rec_recoveries_heads<- mrp_rec_recoveries %>% group_by(recovery_year, region, rec_month) %>% summarise(heads=n() ) %>% rename(month=rec_month, year=recovery_year)
@@ -411,8 +413,7 @@ mrp_irec_creel_tags
 
 #View(mrp_tag_recoveries)
 View(mrp_irec_creel_tags)
-mrp_irec_creel_tags<- mrp_irec_creel_tags %>% mutate(
-                                                     submission_rate = 1/cwt_estimate, 
+mrp_irec_creel_tags<- mrp_irec_creel_tags %>% mutate(submission_rate = 1/cwt_estimate, 
                                                      accatch = not_direct/submission_rate, 
                                                      flag= case_when(submission_rate %in% c(0.5, 1, 0.25) ~ "artificial sub_rate", 
                                                                      cwt_estimate %in% c(1, 1.01, 1.02, 2.5, 3, 5, 8) ~ "artificial sub_rate", 
@@ -444,7 +445,9 @@ mrp_irec_creel_tags_plotting<- mrp_irec_creel_tags_plotting %>%  mutate(year_mon
 
 mrp_irec_creel_tags_simple<- mrp_irec_creel_tags %>% select(-recovery_id, -tag_code) %>% distinct()
 
-mrp_irec_creel_tags_simple_diff<-mrp_irec_creel_tags_simple %>% mutate(diff=accatch - sum_creel)
+mrp_irec_creel_tags_simple_diff<-mrp_irec_creel_tags_simple %>% mutate(diff_creel=accatch - sum_creel,
+                                                                       diff_irec =accatch - sum_irec, 
+                                                                       diff_pseudo = accatch - sum_pseudocreel)
 
 
 View(mrp_irec_creel_tags_simple_diff)
@@ -466,7 +469,14 @@ ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", region
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 #this one
-ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year<2018, month %in% c(5,6,7,8,9), direct_heads=="not_direct"), aes(x=accatch, y= sum_creel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year<2017, month %in% c(5,6,7,8,9), direct_heads=="not_direct"), aes(x=accatch, y= sum_creel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+  geom_smooth(method="lm")+facet_wrap(~region, scales="free")
+
+
+ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year>2017, direct_heads=="not_direct"), aes(x=accatch, y= sum_pseudocreel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+  geom_smooth(method="lm")+facet_wrap(~region, scales="free")
+
+ggplot(mrp_irec_creel_tags_simple %>% filter(direct_heads=="not_direct",  region %in% c(27,28)), aes(x=accatch, y= sum_creel, fill=as.factor(flag), col=as.factor(flag)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 
