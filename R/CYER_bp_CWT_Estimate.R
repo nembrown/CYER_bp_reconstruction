@@ -237,7 +237,6 @@ creel_kept_marked_prop_for_irec<- creel_kept_marked_prop_for_irec1 %>% mutate(ma
 creel_adipose_for_irec<- creel_kept_marked_prop_for_irec %>% select(area, year, month, disposition, creel) %>% filter(creel!=0)
 
 
-View(creel_adipose_for_irec)
 
 irec <- irec_combined %>% filter(METHOD == "Angling from boat") %>% 
   mutate(AREA = case_when(AREA== "Area 29 (Marine)" ~ "Area 29", TRUE ~ AREA)) %>% 
@@ -327,8 +326,9 @@ irec_creel_merged_adipose_pseudo<-irec_creel_merged_adipose_1 %>%  mutate(
                                                          pseudocreel = case_when(
                                                            year > 2011 & month %in% c(5:9) & (is.na(creel) | creel ==0) ~ as.numeric(irec/bcf),
                                                            year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
-                                                           year < 2012 ~  NA_real_,
-                                                           TRUE ~ as.numeric(creel)))
+                                                           year < 2013 ~  as.numeric(creel),
+                                                           TRUE ~ as.numeric(creel)), 
+                                                         irec_calibrated = irec/bcf)
 
 
 ### take out creel here and add it in from before 
@@ -357,10 +357,11 @@ irec_creel_merged_adipose_pseudo_region<- merge(irec_creel_merged_adipose_pseudo
 irec_creel_merged_adipose_pseudo_region<- irec_creel_merged_adipose_pseudo_region %>% group_by(year, month, region) %>% 
                                           summarise(sum_creel = ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
                                                     sum_irec = ifelse(all(is.na(irec)), NA, sum(irec, na.rm=TRUE)), 
-                                                    sum_pseudocreel= ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE)), 
+                                                    sum_pseudocreel= ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE)),
+                                                    sum_irec_calibrated= ifelse(all(is.na(irec_calibrated)), NA, sum(irec_calibrated, na.rm=TRUE)),
                                                     sum_creel_kris= ifelse(all(is.na(creel_kris)), NA, sum(creel_kris, na.rm=TRUE)))
 
-View(mrp_rec_recoveries )
+View(irec_creel_merged_adipose_pseudo_region)
 #### load in mrp data
 #mrp_recoveries<-getDfoTagRecoveries(2009:2022)
 fishery_lookup_simple<-mrp_rec_recoveries %>% select(region, recovery_year, area, psc_fishery_id, area_name) %>% distinct()
@@ -411,30 +412,40 @@ mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_month_
 mrp_irec_creel_tags<-merge(mrp_irec_creel, mrp_tag_recoveries_simple, all.y =TRUE) %>% as_tibble()
 mrp_irec_creel_tags
 
-#View(mrp_tag_recoveries)
+#View(mrp_tag_recoveries)x > 2 & x < 5
 View(mrp_irec_creel_tags)
 mrp_irec_creel_tags<- mrp_irec_creel_tags %>% mutate(submission_rate = 1/cwt_estimate, 
                                                      accatch = not_direct/submission_rate, 
-                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) ~ "artificial sub_rate", 
-                                                                     cwt_estimate %in% c(1, 1.01, 1.02, 2.5, 3, 5, 8) ~ "artificial sub_rate", 
-                                                                     cwt_estimate <2~ "artificial sub_rate", 
-                                                                     cwt_estimate == round(cwt_estimate_mean, 2) ~ "average_sub_rate",
-                                                                     cwt_estimate == round(cwt_estimate_mean_artificial, 2) ~ "average_sub_rate_w_artificial",
-                                                                     cwt_estimate == round(cwt_estimate_mean_month, 2) ~ "average_sub_rate_month",
+                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 1.02, 2.5, 3, 5, 8) | cwt_estimate <2 ~ "artificial sub_rate", 
+                                                                     
+                                                                     cwt_estimate > (round(cwt_estimate_mean_artificial, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_artificial, 2) + 0.02) ~ "average_sub_rate_w_artificial",
+                                                                    
+                                                                     cwt_estimate > (round(cwt_estimate_mean, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean, 2) + 0.02) ~ "average_sub_rate",
+                                                                     
+                                                                     cwt_estimate > (round(cwt_estimate_mean_month, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_month, 2) + 0.02) ~ "average_sub_rate_month",
+                                                                     
                                                                      TRUE ~ "calculated sub_rate"), 
                                                      #used_heads = submission_rate*sum_creel, 
-                                                     used_sub_rate = not_direct/sum_creel, 
-                                                     cwt_estimate_pre_not_readable = round(cwt_estimate - (cwt_estimate* ((not_readable)/(not_direct))), 2),
-                                                     subrate_pre_not_readable = 1/  cwt_estimate_pre_not_readable,
-                                                     accatch_pre_not_readable = not_direct/subrate_pre_not_readable , 
-                                                     prop_not_read = not_readable/(not_readable+not_direct),
-                                                     calculated_cwt_norah = 1/used_sub_rate, 
-                                                     sum_pseudocreel2 = case_when(
-                                                     year < 2018 ~ sum_creel, 
-                                                     TRUE ~ sum_pseudocreel
-                                                     ))
+                                                     creel_only_sub_rate = not_direct/sum_creel, 
+                                                     creel_with_irec_sub_rate = not_direct/sum_pseudocreel, 
+                                                     irec_only_sub_rate = not_direct/sum_irec_calibrated, 
+                                                     prop_not_read = not_readable/not_direct,
+                                                     cwt_creel_only = (1/creel_only_sub_rate)*(1+prop_not_read), 
+                                                     cwt_creel_with_irec = (1/creel_with_irec_sub_rate)*(1+prop_not_read), 
+                                                     cwt_irec_only = (1/irec_only_sub_rate)*(1+prop_not_read),
+                                                     cwt_recreated = case_when(
+                                                                     flag == "average_sub_rate_w_artificial" ~ cwt_estimate_mean,
+                                                                     flag == "average_sub_rate_month" ~ cwt_estimate_mean,
+                                                                     flag == "average_sub_rate" ~ cwt_estimate_mean,
+                                                                     flag == "artificial sub_rate" ~ cwt_estimate,
+                                                                     flag == "calculated sub_rate" & year <2017 ~ cwt_creel_only,
+                                                                     flag == "calculated sub_rate" & year >2016 & region %notin% c(25,26) ~ cwt_creel_with_irec,
+                                                                     flag == "calculated sub_rate" & year >2019 & region %in% c(25,26) ~ cwt_irec_only,
+                                                                     TRUE ~ cwt_creel_only ))
+
+
 #mrp_irec_creel_tags$region[mrp_irec_creel_tags$region=="22"]<-"62"
-#View(mrp_irec_creel_tags)
+View(mrp_irec_creel_tags)
 
 
 #### to-do - take out where creel and psuedocreel = 0 call that NA, take out artifical sub rate
@@ -447,7 +458,8 @@ mrp_irec_creel_tags_simple<- mrp_irec_creel_tags %>% select(-recovery_id, -tag_c
 
 mrp_irec_creel_tags_simple_diff<-mrp_irec_creel_tags_simple %>% mutate(diff_creel=accatch - sum_creel,
                                                                        diff_irec =accatch - sum_irec, 
-                                                                       diff_pseudo = accatch - sum_pseudocreel)
+                                                                       diff_pseudo = accatch - sum_pseudocreel,
+                                                                       diff_cwt = cwt_recreated - cwt_estimate)
 
 
 View(mrp_irec_creel_tags_simple_diff)
@@ -456,7 +468,7 @@ View(mrp_irec_creel_tags_simple)
  # facet_wrap(~region, scales="free") + geom_line()+theme(legend.position = "bottom")
 
 
-ggplot(mrp_irec_creel_tags_simple %>% filter(region ==28), aes(x=sum_creel, y= sum_creel_kris, fill=as.factor(year), col=as.factor(year)))+geom_point()+geom_abline(slope=1)+
+ggplot(mrp_irec_creel_tags_simple %>% filter(region ==28), aes(x=cwt_estimate, y= cwt_creel_only, fill=as.factor(year), col=as.factor(year)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 
@@ -469,7 +481,11 @@ ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", region
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 #this one
-ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year<2017, month %in% c(5,6,7,8,9), direct_heads=="not_direct"), aes(x=accatch, y= sum_creel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year<2017, direct_heads=="not_direct"), aes(x=accatch, y= sum_creel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+  geom_smooth(method="lm")+facet_wrap(~region, scales="free")
+
+
+ggplot(mrp_irec_creel_tags_simple %>% filter( direct_heads=="not_direct"), aes(x=cwt_estimate, y= cwt_recreated, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 
@@ -578,187 +594,4 @@ adipose_kept
 adipose_and_unchecked_kept <- ggplot(adipose_and_unchecked_long %>% filter(disposition=="Kept") ,aes(x=as.factor(year), y=values, color=source, group=source))
 adipose_and_unchecked_kept <-   adipose_and_unchecked_kept + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
 adipose_and_unchecked_kept
-
-
-
-
-
-# Section for looking at proportion of adipose, unchecked and non adipose -----------------------------------------------------------------
-
-creel_adipose_all <- creel_nick %>%
-    rename(AREA_NUM = AREA, AREA = AREA_GROUP, ESTIMATE=VAL) %>%
-    filter(DATASOURCE == "Creel Estimate") %>%
-    mutate(AREA = case_when(
-      YEAR == 2013 & MONTH > 4 & str_detect(AREA, "Area 20") ~ "Area 20", 
-      YEAR == 2014 & MONTH %in% c(3,6:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
-      YEAR %in% c(2015, 2016, 2018) & MONTH %in% c(6:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
-      YEAR %in% c(2017, 2019) & MONTH %in% c(5:9) & str_detect(AREA, "Area 20") ~ "Area 20", 
-      YEAR == 2020 & MONTH < 4 & str_detect(AREA, "Area 20") ~ "Area 20",
-      YEAR <2014 & str_detect(AREA, "Area 23") ~ "Area 23", 
-      YEAR == 2014  & MONTH < 4 & str_detect(AREA, "Area 23") ~ "Area 23", 
-      YEAR <2014 & str_detect(AREA, "Area 19") ~ "Area 19", 
-      YEAR == 2014  & MONTH < 4 & str_detect(AREA, "Area 19") ~ "Area 19", 
-      YEAR <2014 & str_detect(AREA, "2E|2W") ~ "Area 2", 
-      YEAR == 2014 & MONTH < 4 & str_detect(AREA, "2E|2W") ~ "Area 2",
-      TRUE ~ as.character(AREA)
-    )) %>%
-    select(AREA, YEAR, MONTH, TYPE, ESTIMATE, MARKS_DESC) %>% 
-    group_by(AREA, YEAR, MONTH, TYPE, MARKS_DESC) %>% 
-    summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE)) %>%  
-    filter(AREA %notin% c("Area 20 (West)", "Area 20 (East)") ) %>% 
-    left_join(arealu[, c("AREA", "LU_GROUPING3")]) %>% 
-    rename(DISPOSITION = TYPE, CREEL = ESTIMATE, adipose=MARKS_DESC) %>% 
-    mutate(adipose = case_when(adipose == "Not Adipose Checked" ~ "Not_Adipose_Checked",
-                               adipose == "Adipose Marked" ~ "Adipose_Marked",
-                               adipose == "Not Applicable" ~ "Not_Applicable",
-                               adipose == "Not Adipose Marked" ~ "Not_Adipose_Marked",
-                                        TRUE ~ adipose))
-  
-  irec_adipose_all <- irec %>% 
-    filter(METHOD == "Angling from boat") %>% 
-    mutate(AREA = case_when(AREA== "Area 29 (Marine)" ~ "Area 29", TRUE ~ AREA)) %>% 
-    filter(AREA != "Area 29 (In River)", YEAR > 2011) %>% 
-    mutate(ADIPOSE_MODIFIER = case_when(ADIPOSE_MODIFIER== "Not Checked" ~ "Not_Adipose_Checked",
-                                        ADIPOSE_MODIFIER== "Not Applicable" ~ "Not_Applicable",
-                                        ADIPOSE_MODIFIER== "Adipose Marked" ~ "Adipose_Marked",
-                                        ADIPOSE_MODIFIER== "Not Adipose Marked" ~ "Not_Adipose_Marked",
-                                        TRUE ~ ADIPOSE_MODIFIER)) %>% 
-    rename(adipose =ADIPOSE_MODIFIER) %>% as_tibble()
-  
-
-  # Expand Irec data
-  # input 0s for missing observations on irec
-  # create df for all possible observations - using variables of interest only
-  # if other variables are considered, need to include them here
-  allobs_adipose_all <- expand.grid(list(
-    AREA = unique(irec_adipose$AREA),
-    YEAR = unique(irec_adipose$YEAR),
-    MONTH = unique(irec_adipose$MONTH),
-    DISPOSITION = unique(irec_adipose$DISPOSITION), 
-    adipose = unique(irec_adipose_all$adipose)
-  ))
-  
-  
-  #create zero observations, with 0 variance
-  irecall_adipose_all <- left_join(allobs_adipose_all, irec_adipose_all)
-  irecall_adipose_all$ESTIMATE[is.na(irecall_adipose_all$ESTIMATE)] <- 0
-  irecall_adipose_all$VARIANCE[is.na(irecall_adipose_all$VARIANCE)]<-0
-  irecall_adipose_all <- irecall_adipose_all %>% left_join(arealu[, c("AREA", "LU_GROUPING3")])
-  
-  ireccc_adipose_all <- irecall_adipose_all %>%
-    select(c(AREA, YEAR, MONTH, DISPOSITION, ESTIMATE, VARIANCE, LU_GROUPING3, adipose)) %>%
-    group_by(AREA, YEAR, MONTH, DISPOSITION, LU_GROUPING3, adipose) %>%
-    summarise(ESTIMATE = sum(ESTIMATE, na.rm = TRUE), VARIANCE = sum(VARIANCE, na.rm = TRUE)) %>%
-    mutate(SD = sqrt(VARIANCE)) %>%
-    select(c(!VARIANCE)) %>%
-    rename(IREC = ESTIMATE, SDIREC = SD)
-  
-  
-  ### merge irec and creel adipose
-  irec_creel_merged_adipose_all <- merge(creel_adipose_all, ireccc_adipose_all, all=TRUE) %>% as_tibble() 
-  names(irec_creel_merged_adipose_all) <- tolower(names(irec_creel_merged_adipose_all ))
-  irec_creel_merged_adipose_all <- rename(irec_creel_merged_adipose_all, region = lu_grouping3)
-  irec_creel_merged_adipose_all
-  
-
-  
-  irec_creel_merged_adipose_all<-irec_creel_merged_adipose_all%>% mutate(erafishery = case_when(
-    area%in%c("Area 121", "Area 122", "Area 123", "Area 124", "Area 125", "Area 126", "Area 127") ~ "WCVI AABM S",
-    area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
-    grepl("Area 23", area) & month%in%c(10,11,12,1,2,3,4,5,6,7) ~ "WCVI AABM S",
-    area%in%c("Area 21", "Area 22", "Area 24") & month%in%c(8,9) ~ "WCVI ISBM S",
-    grepl("Area 23", area) & month%in%c(8,9) ~ "WCVI ISBM S",
-    area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(10,11,12,1,2,3,4,5,6) ~ "WCVI AABM S",
-    area%in%c("Area 25", "Area 26", "Area 27") & month%in%c(7,8,9) ~ "WCVI ISBM S",
-    area %in% treaty_cbc~ "CBC S", 
-    area %in% treaty_nbc_aabm~ "NBC AABM S", 
-    area %in% treaty_nbc_isbm~ "NBC ISBM S", 
-    area %in% gst~ "GEO ST S",
-    area %in% jst~ "JNST S",
-    area %in% jdf~ "BC JF S"))
-
-  
-  irec_creel_merged_adipose_all_1<-  irec_creel_merged_adipose_all %>% mutate(licence.year= case_when(
-    month > 3 ~ as.numeric(year),
-    month < 4 ~ as.numeric(year - 1 )))
-  irec_creel_merged_adipose_all_1<-merge( irec_creel_merged_adipose_all_1, bcf_short, all=TRUE)%>% as_tibble()
-  
-
-  
-  #create a pseudocreel_version1 - do this on an area by area basis
-  #no variation - took out those parts
-  irec_creel_merged_adipose_all_pseudo<-irec_creel_merged_adipose_all_1 %>%  mutate(
-    #irec_var = sdirec ^ 2, 
-    # creel_var = sdcreel ^ 2, 
-    pseudocreel = case_when(
-      year > 2011 & month %in% c(5:9) & is.na(creel) ~ as.numeric(irec/bcf),
-      year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
-      year < 2012 ~  NA_real_,
-      TRUE ~ as.numeric(creel))
-    #, 
-    # pseudocreel_var = case_when(
-    #  month %in% c(5:9) & is.na(creel_var) ~ as.numeric(irec_var/bcf),
-    # month %in% c(1:4,10:12) ~ as.numeric(irec_var/bcf),
-    #TRUE ~ as.numeric(creel_var))
-  )
-  
-
-  
-  
-  #### Summarise across year:
-  irec_creel_merged_adipose_all_pseudo_sum_erafishery<- irec_creel_merged_adipose_all_pseudo %>% group_by(erafishery, year, disposition, adipose) %>% 
-    summarise(creel_sum=ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
-              # creel_var_sum=ifelse(all(is.na(creel_var)), NA, sum(creel_var, na.rm=TRUE)),
-              #  creel_sd_sum = sqrt(creel_var_sum),
-              pseudocreel_sum=sum(pseudocreel, na.rm = TRUE)
-              #, 
-              # pseudocreel_var_sum=sum(pseudocreel_var, na.rm = TRUE), 
-              #  pseudocreel_sd_sum=sqrt(pseudocreel_var_sum)
-    ) 
-  #%>% 
-  #  select(-pseudocreel_var_sum, -creel_var_sum)
-  
-  
-
-  adipose_all_long<- irec_creel_merged_adipose_all_pseudo_sum_erafishery %>% pivot_longer(cols=c("creel_sum", "pseudocreel_sum"), names_to = "source", values_to = "values")
-
-  adipose_all_long 
-  
-  adipose_kept <- ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="creel_sum") ,aes(x=as.factor(year), y=values, shape=source, color=adipose, group=adipose))
-  adipose_kept <- adipose_kept + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
-  adipose_kept 
-  
-  adipose_kept <- ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="pseudocreel_sum") ,aes(x=as.factor(year), y=values, shape=source, color=adipose, group=adipose))
-  adipose_kept <- adipose_kept + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
-  adipose_kept 
-  
- 
-
-  adipose_all_wide<- irec_creel_merged_adipose_all_pseudo_sum_erafishery %>% pivot_wider(names_from = adipose, values_from = c(creel_sum, pseudocreel_sum))
-  adipose_all_wide<-  adipose_all_wide %>% mutate(total_creel = creel_sum_Adipose_Marked +  creel_sum_Not_Adipose_Marked +  creel_sum_Not_Adipose_Checked, 
-                                                  total_pseudocreel = pseudocreel_sum_Adipose_Marked +  pseudocreel_sum_Not_Adipose_Marked +  pseudocreel_sum_Not_Adipose_Checked, 
-                                                  prop_creel_notchecked = creel_sum_Not_Adipose_Checked/total_creel, 
-                                                  prop_pseudocreel_notchecked = pseudocreel_sum_Not_Adipose_Checked/total_pseudocreel,
-                                                  prop_creel_marked = creel_sum_Adipose_Marked/total_creel, 
-                                                  prop_pseudocreel_marked = pseudocreel_sum_Adipose_Marked/total_pseudocreel,
-                                                  prop_creel_unmarked = creel_sum_Not_Adipose_Marked/total_creel, 
-                                                  prop_pseudocreel_unmarked = pseudocreel_sum_Not_Adipose_Marked/total_pseudocreel
-                                                  )
-  
-  adipose_all_wide_long<- adipose_all_wide %>% pivot_longer(cols=contains("creel"), names_to = "variable", values_to = "values")
-  adipose_all_wide_long_pseudo_prop<- adipose_all_wide_long %>% filter(variable %in% c("prop_pseudocreel_unmarked", "prop_pseudocreel_marked", "prop_pseudocreel_notchecked")) 
-  adipose_all_wide_long_creel_prop<- adipose_all_wide_long %>% filter(variable %in% c("prop_creel_unmarked", "prop_creel_marked", "prop_creel_notchecked")) 
-  
-  #this plot is proportion of adipose kept changing over time? 
-  adipose_kept_marked <- ggplot(adipose_all_wide_long_pseudo_prop ,aes(x=as.factor(year), y=values,  color=variable, group=variable ))
-  adipose_kept_marked <- adipose_kept_marked + geom_point(size=3, alpha=.5)+ facet_wrap(~disposition + erafishery, scales="free") + geom_line()+theme(legend.position = "bottom")
-  adipose_kept_marked  
-  
-
-  
-ggplot(adipose_all_long %>% filter(disposition=="Kept", source=="pseudocreel_sum") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery, scales="free") 
-
-ggplot(adipose_all_long %>% filter(disposition=="Kept") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery + source, scales="free") 
-
-ggplot(adipose_all_long %>% filter(disposition=="Released") ,aes(x=as.factor(year), y=values, fill=adipose))+geom_bar(position="stack", stat="identity")+ facet_wrap(~disposition + erafishery + source, scales="free") 
 
