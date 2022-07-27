@@ -199,6 +199,7 @@ creel_adipose_for_irec1 <- creel_nick %>%
     AREA == "Area 20" & MONTH %in% c(10) & YEAR %in% c(2015,2017,2018, 2019) ~ "Area 20 (East)", 
     AREA == "Area 20" & MONTH %in% c(11) & YEAR %in% c(2008,2009,2011) ~ "Area 20 (East)", 
     AREA == "Area 20" & MONTH %in% c(12) & YEAR %in% c(2008,2009,2011) ~ "Area 20 (East)", 
+    AREA == "Area 13 SoG" ~ "Area 13", 
     TRUE ~ as.character(AREA)
   )) %>%
     select(AREA, YEAR, MONTH, TYPE, MARKS_DESC, ESTIMATE) %>% 
@@ -219,20 +220,27 @@ creel_kept_marked_prop_for_irec1$Adipose_Marked[is.na(creel_kept_marked_prop_for
 creel_kept_marked_prop_for_irec1$Not_Adipose_Marked[is.na(creel_kept_marked_prop_for_irec1$Not_Adipose_Marked)] <- 0
 creel_kept_marked_prop_for_irec1$Not_Adipose_Checked[is.na(creel_kept_marked_prop_for_irec1$Not_Adipose_Checked)] <- 0
 
-# creel_kept_marked_prop_for_irec_year<-creel_kept_marked_prop_for_irec1 %>% group_by(area, year) %>% summarise(across(where(is.numeric), sum)) %>% 
-#   mutate(marked_prop_year = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(area, year, marked_prop_year)
-# 
-# creel_kept_marked_prop_for_irec<- merge(creel_kept_marked_prop_for_irec1, creel_kept_marked_prop_for_irec_year, all=TRUE) %>% as_tibble() %>% 
-#   mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked), 
-#          marked_prop_combined =case_when( marked_prop == 0 ~ marked_prop_year, 
-#                                           TRUE ~ marked_prop),
-#          Not_Adipose_Checked_marked = marked_prop_combined*Not_Adipose_Checked, 
-#          creel = Adipose_Marked + Not_Adipose_Checked_marked)
-# 
+ creel_kept_marked_prop_for_irec_year<-creel_kept_marked_prop_for_irec1 %>% group_by(area, year) %>% summarise(across(where(is.numeric), sum)) %>% 
+   mutate(marked_prop_year = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(area, year, marked_prop_year)
 
-creel_kept_marked_prop_for_irec<- creel_kept_marked_prop_for_irec1 %>% mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked),
-                                                            Not_Adipose_Checked_marked = marked_prop*Not_Adipose_Checked,
-                                                            creel = Adipose_Marked + Not_Adipose_Checked_marked)
+ creel_kept_marked_prop_for_irec_area<-creel_kept_marked_prop_for_irec1 %>% group_by(area) %>% summarise(across(where(is.numeric), sum)) %>% 
+   mutate(marked_prop_area = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(area, marked_prop_area)
+ 
+
+# 
+creel_kept_marked_prop_for_irec1<- merge(creel_kept_marked_prop_for_irec1, creel_kept_marked_prop_for_irec_year, all=TRUE) %>% as_tibble()
+creel_kept_marked_prop_for_irec1<- merge(creel_kept_marked_prop_for_irec1, creel_kept_marked_prop_for_irec_area, all=TRUE) %>% as_tibble()
+
+
+# 
+ creel_kept_marked_prop_for_irec<-creel_kept_marked_prop_for_irec1 %>% as_tibble() %>% 
+   mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked), 
+          marked_prop_combined =case_when( is.nan( marked_prop_year) | marked_prop_year ==0 ~ marked_prop_area, 
+                                           is.nan( marked_prop) | marked_prop ==0 ~ marked_prop_year, 
+                                           TRUE ~ marked_prop),
+          Not_Adipose_Checked_marked = marked_prop_combined*Not_Adipose_Checked, 
+          creel = Adipose_Marked + Not_Adipose_Checked_marked)
+ 
 
 creel_adipose_for_irec<- creel_kept_marked_prop_for_irec %>% select(area, year, month, disposition, creel) %>% filter(creel!=0)
 
@@ -290,19 +298,24 @@ irec_kept_marked_prop1$Not_Adipose_Marked[is.na(irec_kept_marked_prop1$Not_Adipo
 irec_kept_marked_prop1$Not_Adipose_Checked[is.na(irec_kept_marked_prop1$Not_Adipose_Checked)] <- 0
 
 
-# irec_kept_marked_prop_year<-irec_kept_marked_prop1 %>% group_by(area, year) %>% summarise(across(where(is.numeric), sum)) %>% 
-#   mutate(marked_prop_year = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(area, year, marked_prop_year)
-# 
-# irec_kept_marked_prop<- merge(irec_kept_marked_prop1, irec_kept_marked_prop_year, all=TRUE) %>% as_tibble() %>% 
-#   mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked), 
-#          marked_prop_combined =case_when( marked_prop == 0 ~ marked_prop_year, 
-#                                           TRUE ~ marked_prop),
-#          Not_Adipose_Checked_marked = marked_prop_combined*Not_Adipose_Checked, 
-#          irec = Adipose_Marked + Not_Adipose_Checked_marked)
+irec_kept_marked_prop1_area<-irec_kept_marked_prop1 %>% group_by(area) %>% summarise(across(where(is.numeric), sum)) %>% 
+  mutate(marked_prop_area = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(area,  marked_prop_area)
 
-irec_kept_marked_prop <- irec_kept_marked_prop1 %>% mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked),
-                                                                              Not_Adipose_Checked_marked = marked_prop*Not_Adipose_Checked,
-                                                                              irec = Adipose_Marked + Not_Adipose_Checked_marked)
+irec_kept_marked_prop1_yearly<- irec_kept_marked_prop1 %>% group_by(area, year, disposition) %>% summarise_if(is.numeric, sum, na.rm=TRUE)  %>% 
+                                                           mutate(marked_prop_year = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked)) %>% select(-month, -Adipose_Marked, -Not_Adipose_Marked, -Not_Adipose_Checked)
+
+irec_kept_marked_prop1 <- merge(irec_kept_marked_prop1, irec_kept_marked_prop1_yearly, all=TRUE) %>% as_tibble()
+irec_kept_marked_prop1 <- merge(irec_kept_marked_prop1, irec_kept_marked_prop1_area, all=TRUE) %>% as_tibble()
+
+
+irec_kept_marked_prop<-irec_kept_marked_prop1 %>% as_tibble() %>% 
+                    mutate(marked_prop = Adipose_Marked/(Adipose_Marked + Not_Adipose_Marked), 
+                           marked_prop_combined =case_when( is.nan( marked_prop_year) | marked_prop_year ==0 ~ marked_prop_area, 
+                                                            is.nan( marked_prop) | marked_prop ==0 ~ marked_prop_year, 
+                                                            TRUE ~ marked_prop),
+                           Not_Adipose_Checked_marked = marked_prop_combined*Not_Adipose_Checked, 
+                           irec = Adipose_Marked + Not_Adipose_Checked_marked)
+
 
 ireccc_adipose<- irec_kept_marked_prop %>% select(area, year, month, disposition, irec)
 
@@ -389,7 +402,7 @@ mrp_rec_direct_heads$not_direct[is.na(mrp_rec_direct_heads$not_direct)] <- 0
 mrp_rec_direct_heads<- merge(mrp_rec_direct_heads, mrp_rec_recoveries_heads_not_readable, all=TRUE) %>% as_tibble()
 mrp_rec_direct_heads$not_readable[is.na(mrp_rec_direct_heads$not_readable)] <- 0
 
-View(mrp_tag_recoveries)
+
 
 mrp_tag_recoveries<- mrp_rec_recoveries %>% filter( ! is.na(cwt_estimate))
 mrp_tag_recoveries_simple<- mrp_tag_recoveries %>% select(recovery_id, tag_code, recovery_year, rec_month, region, cwt_estimate) %>% 
@@ -397,30 +410,47 @@ mrp_tag_recoveries_simple<- mrp_tag_recoveries %>% select(recovery_id, tag_code,
                                                            cwt_estimate < 2 ~ "direct", 
                                                            TRUE ~ "not_direct")) 
                                                        
-mrp_tag_recoveries_simple_check<- mrp_tag_recoveries_simple %>% select(region, year, month, cwt_estimate) %>% distinct() %>% arrange(region, year, month)  
-mrp_tag_recoveries_simple_check_mean_year<- mrp_tag_recoveries_simple_check %>% filter(cwt_estimate %notin% c(1,2,3,4,5,8, 2.5), cwt_estimate >2) %>%  group_by(region, year) %>%  summarise(cwt_estimate_mean= mean(cwt_estimate, na.rm=TRUE))  
-mrp_tag_recoveries_simple_check_mean_year_include_artificial<-mrp_tag_recoveries_simple_check %>%  group_by(region, year) %>%  summarise(cwt_estimate_mean_artificial= mean(cwt_estimate, na.rm=TRUE))  
+mrp_tag_recoveries_simple_check<- mrp_tag_recoveries_simple %>% select(region, year, month, cwt_estimate, direct_heads) %>% distinct() %>% arrange(region, year, month)  
+mrp_tag_recoveries_simple_check_mean_year<- mrp_tag_recoveries_simple_check %>% filter(cwt_estimate %notin% c(1,2,3,4,5,8, 2.5), direct_heads == "not_direct") %>%  group_by(region, year) %>%  summarise(cwt_estimate_mean= mean(cwt_estimate, na.rm=TRUE))  
+mrp_tag_recoveries_simple_check_mean_year_summer_only<- mrp_tag_recoveries_simple_check %>% filter(cwt_estimate %notin% c(1,2,3,4,5,8, 2.5), cwt_estimate >2, month %in% c(5,6,7,8,9)) %>%  group_by(region, year) %>%  summarise(cwt_estimate_mean_summer= mean(cwt_estimate, na.rm=TRUE))  
+mrp_tag_recoveries_simple_check_mean_year_include_artificial<-mrp_tag_recoveries_simple_check %>% filter(direct_heads=="not_direct") %>%  group_by(region, year) %>%  summarise(cwt_estimate_mean_artificial= mean(cwt_estimate, na.rm=TRUE))  
 mrp_tag_recoveries_simple_check_mean_month_all_years<-mrp_tag_recoveries_simple_check %>%  group_by(region, month) %>%  summarise(cwt_estimate_mean_month= mean(cwt_estimate, na.rm=TRUE))  
 
 
 mrp_irec_creel<-merge(irec_creel_merged_adipose_pseudo_region, mrp_rec_direct_heads, all=TRUE) %>% as_tibble()
 mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year, all=TRUE) %>% as_tibble()
+mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year_summer_only, all=TRUE) %>% as_tibble()
 mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year_include_artificial, all=TRUE) %>% as_tibble()
 mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_month_all_years, all=TRUE) %>% as_tibble()
+
+
 
 
 mrp_irec_creel_tags<-merge(mrp_irec_creel, mrp_tag_recoveries_simple, all.y =TRUE) %>% as_tibble()
 mrp_irec_creel_tags
 
+#add in another way to do the average - take out direct heads and then do average of where there IS creel
+mrp_irec_creel_tags_average<- mrp_irec_creel_tags %>% filter(direct_heads=="not_direct", !is.na(sum_creel)) %>%  
+                                                      select(region, year, month, sum_creel, cwt_estimate) %>% 
+                                                      distinct() %>% group_by(region, year) %>%  
+                                                      summarise(cwt_estimate_mean_creel_pres= mean(cwt_estimate, na.rm=TRUE)) 
+
+mrp_irec_creel_tags<- merge(mrp_irec_creel_tags,mrp_irec_creel_tags_average, all=TRUE ) %>% as_tibble()
+
 #View(mrp_tag_recoveries)x > 2 & x < 5
 View(mrp_irec_creel_tags)
-mrp_irec_creel_tags<- mrp_irec_creel_tags %>% mutate(submission_rate = 1/cwt_estimate, 
+mrp_irec_creel_tags<- mrp_irec_creel_tags %>% filter(region != 29) %>% 
+                                                mutate(submission_rate = 1/cwt_estimate, 
                                                      accatch = not_direct/submission_rate, 
-                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 1.02, 2.5, 3, 5, 8) | cwt_estimate <2 ~ "artificial sub_rate", 
+                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 2, 2.5, 3, 5, 8) | cwt_estimate <2  | cwt_estimate %in% c(2.01, 2.02, 2.03, 3.01, 3.02, 3.03, 4.01, 4.01, 4.03) & is.na(sum_creel) ~ "artificial sub_rate", 
                                                                      
                                                                      cwt_estimate > (round(cwt_estimate_mean_artificial, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_artificial, 2) + 0.02) ~ "average_sub_rate_w_artificial",
                                                                     
                                                                      cwt_estimate > (round(cwt_estimate_mean, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean, 2) + 0.02) ~ "average_sub_rate",
+                                                                     
+                                                                     cwt_estimate > (round(cwt_estimate_mean_summer, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_summer, 2) + 0.02) ~ "average_sub_rate_summer",
+                                                                     
+                                                                     cwt_estimate > (round(cwt_estimate_mean_creel_pres, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_creel_pres, 2) + 0.02) ~ "average_sub_rate_creel_pres",
                                                                      
                                                                      cwt_estimate > (round(cwt_estimate_mean_month, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_month, 2) + 0.02) ~ "average_sub_rate_month",
                                                                      
@@ -434,9 +464,12 @@ mrp_irec_creel_tags<- mrp_irec_creel_tags %>% mutate(submission_rate = 1/cwt_est
                                                      cwt_creel_with_irec = (1/creel_with_irec_sub_rate)*(1+prop_not_read), 
                                                      cwt_irec_only = (1/irec_only_sub_rate)*(1+prop_not_read),
                                                      cwt_recreated = case_when(
-                                                                     flag == "average_sub_rate_w_artificial" ~ cwt_estimate_mean,
-                                                                     flag == "average_sub_rate_month" ~ cwt_estimate_mean,
-                                                                     flag == "average_sub_rate" ~ cwt_estimate_mean,
+                                                                     is.na(sum_creel) & month %in% c(1,2,3,4,10,11,12) ~ cwt_estimate_mean_creel_pres,
+                                                                     flag == "average_sub_rate_w_artificial" ~ cwt_estimate_mean_creel_pres,
+                                                                     flag == "average_sub_rate_month" ~ cwt_estimate_mean_creel_pres,
+                                                                     flag == "average_sub_rate" ~ cwt_estimate_mean_creel_pres,
+                                                                     flag == "average_sub_rate_creel_pres" ~ cwt_estimate_mean_creel_pres,
+                                                                     flag == "average_sub_rate_summer" ~ cwt_estimate_mean_creel_pres,
                                                                      flag == "artificial sub_rate" ~ cwt_estimate,
                                                                      flag == "calculated sub_rate" & year <2017 ~ cwt_creel_only,
                                                                      flag == "calculated sub_rate" & year >2016 & region %notin% c(25,26) ~ cwt_creel_with_irec,
