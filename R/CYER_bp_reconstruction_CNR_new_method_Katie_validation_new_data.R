@@ -45,7 +45,7 @@ bcf_short<-bcf %>% select(licence.year, disposition, bcf)
 irec_2021<- read_excel(here::here("data/2021 iREC Catch.xlsx"), sheet="Angling from boat") %>% as_tibble()  %>%  mutate(YEAR = as.numeric(YEAR), MONTH = as.numeric(MONTH))
 irec <- read.csv(here::here("data/iRecchinook_2012_2021.csv")) %>% as_tibble()
 irec <- irec %>%  select(YEAR, MONTH, AREA, METHOD, ITEM, ADIPOSE_MODIFIER, DISPOSITION, RETAINABLE, ITEM_GROUP, ESTIMATE)
-View(irec)
+head(irec)
 #need to do distinct here b/c the previous irec dataset has some 2021 data
 irec_combined<- bind_rows(irec, irec_2021) %>%  as_tibble()  %>% distinct()
 
@@ -56,7 +56,7 @@ creel_full_catch_chinook<-creel_full_catch_chinook %>% rename(AREA_NUM=AREA, ARE
                                                        select(YEAR, MONTH, AREA, SUBAREA, MANAGEMENT, DISPOSITION, RETAINABLE, VAL, SOURCE, MARKS_DESC, FISH_SIZE, DATESINC) %>%  
                                                        distinct()
 
-#creel_full_catch_chinook %>% get_dupes(YEAR, MONTH, AREA, SUBAREA, MANAGEMENT, DISPOSITION, RETAINABLE, VAL, SOURCE, MARKS_DESC) %>% View()
+#creel_full_catch_chinook %>% get_dupes(YEAR, MONTH, AREA, SUBAREA, MANAGEMENT, DISPOSITION, RETAINABLE, VAL, SOURCE, MARKS_DESC) %>% head()
 
 #add in this historic data here - for now just call it all legal 
 creel_kris <- read.csv(here::here("data/SC Rec Chinook 2008 2021 ISBM AABM V2.csv")) %>% as_tibble()
@@ -237,8 +237,9 @@ irec_creel_merged1_new_data<-merge(irec_creel_merged1_new_data, bcf_short, all=T
 #create a pseudocreel_version1 - do this on an area by area basis
 #this is how I would calculate this
 irec_creel_merged_pseudo_new_data<-irec_creel_merged1_new_data %>%  mutate(pseudocreel = case_when(
-                                                  year > 2011 & month %in% c(5:9) & (is.na(creel_log_total)| creel_log_total ==0) ~ as.numeric(irec/bcf),
-                                                  year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
+                                                  year > 2012 & month %in% c(5:9) & (is.na(creel_log_total)| creel_log_total ==0) ~ as.numeric(irec/bcf),
+                                                  year > 2012 & month %in% c(1:4,10:12) & (irec == 0 | is.na(irec)) & !is.na(creel_log_total) ~ as.numeric(creel_log_total),
+                                                  year > 2012 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
                                                   year < 2013 ~  as.numeric(creel_log_total),
                                                   TRUE ~ as.numeric(creel_log_total)))
 
@@ -339,8 +340,8 @@ creel_cnr<- merge(creel_only_cnr, cnr_fishery, all=TRUE) %>%  as_tibble() %>%
 ### need monthly NBC data - could take out NBC from above just to get a working "creel only" - 
 # took out NBC (both aabm and isbm from the above code - add back in when I get monthly estimates - until then cnr = the "creel only" estimate)
 
-anti_join(creel_cnr, cnr) %>% View()
-anti_join(cnr, creel_cnr) %>% View()
+anti_join(creel_cnr, cnr) %>% head()
+anti_join(cnr, creel_cnr) %>% head()
 
 
 ### IREC plus creel = pesuedocreel
