@@ -174,7 +174,7 @@ creel_kept_marked_prop<- creel_kept_marked_prop1 %>% mutate(marked_prop = Adipos
          creel = Adipose_Marked + Not_Adipose_Checked_marked)
 
 creel_adipose<- creel_kept_marked_prop %>% select(area, year, month, disposition, creel) %>% filter(creel!=0)
-
+View(creel_nick)
 ### Different grouping for matching with IREC 
 creel_adipose_for_irec1 <- creel_nick %>%
     rename(AREA_NUM = AREA, AREA = AREA_GROUP, ESTIMATE=VAL) %>%
@@ -337,9 +337,10 @@ irec_creel_merged_adipose_1<-merge( irec_creel_merged_adipose_1, bcf_short, all=
 #no variation - took out those parts
 irec_creel_merged_adipose_pseudo<-irec_creel_merged_adipose_1 %>%  mutate(
                                                          pseudocreel = case_when(
-                                                           year > 2011 & month %in% c(5:9) & (is.na(creel) | creel ==0) ~ as.numeric(irec/bcf),
-                                                           year > 2011 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
-                                                           year < 2013 ~  as.numeric(creel),
+                                                           year > 2012 & month %in% c(5:9) & (is.na(creel) | creel ==0) ~ as.numeric(irec/bcf),
+                                                           year > 2012 & month %in% c(1:4,10:12) & (irec == 0 | is.na(irec))  & !is.na(creel) ~ as.numeric(creel),
+                                                           year > 2012 & month %in% c(1:4,10:12) ~ as.numeric(irec/bcf),
+                                                           year < 2013  ~  as.numeric(creel),
                                                            TRUE ~ as.numeric(creel)), 
                                                          irec_calibrated = irec/bcf)
 
@@ -351,21 +352,174 @@ irec_creel_merged_adipose_pseudo<- merge(irec_creel_merged_adipose_pseudo, creel
  
 ### add in regions here: 
 fishery_simple<- irec_creel_merged_adipose_pseudo %>% select(area) %>% distinct()
-fishery_simple<- fishery_simple %>%  mutate(region = case_when(
-                                       area %in% c("Area 13", "Area 14", "Area 15", "Area 16", "Area 13 SOG") ~ "22", 
-                                       area %in% c("Area 28", "Area 29",  "Area 17", "Area 18", "Area 19 (GS)") ~ "23", 
-                                       area %in% c("Area 19 (JDF)", "Area 19", "Area 20", "Area 20 (East)", "Area 20 (West)") ~ "24", 
-                                       area %in% c("Area 2","Area 1", "Area 101", "Area 102", "Area 142", "Area 2E", "Area 2W", "Area 3", "Area 4", "Area 104", "Area 103", "Area 5") ~ "25", 
-                                       area %in% c("Area 10", "Area 11", "Area 111", "Area 12" , "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 108", "Area 109", "Area 107") ~ "26",  
-                                       area %in% c("Area 23", "Area 123", "Area 24", "Area 124", "Area 25", "Area 125", "Area 26", "Area 126", "Area 27", "Area 127", "Area 23 (Barkley)", "Area 21", "Area 22", "Area 121") ~ "27",
-                                       area == "Area 23 (Alberni Canal)" ~ "28")) %>% 
-                                       add_row(area = "Area 13", region="61") %>% 
-                                       add_row(area = "Area 13 SOG", region="61") %>% 
-                                       add_row(area = "Area 14", region="62") %>% 
-                                       add_row(area = "Area 15", region="62") %>% 
-                                       add_row(area = "Area 16", region="62")
+fishery_simple<- fishery_simple %>%   mutate(CWT_area = case_when(
+                                       area %in% c("Area 13", "Area 13 SOG") ~ "P013",
+                                       area %in% c("Area 14") ~ "P014",
+                                       area %in% c("Area 15") ~ "P015",
+                                       area %in% c("Area 16") ~ "P016",
+                                       area %in% c("Area 17") ~ "P017", 
+                                       area %in% c("Area 18") ~ "P018", 
+                                       area %in% c("Area 19 (GS)") ~ "M19A", 
+                                       area %in% c("Area 28") ~ "P028", 
+                                       area %in% c("Area 29") ~ "P29M", 
+                                       area %in% c("Area 19 (JDF)", "Area 19") ~ "M19B", 
+                                       area %in% c("Area 20", "Area 20 (East)", "Area 20 (West)") ~ "P020", 
+                                       area %in% c("Area 2E") ~ "P2E", 
+                                       area %in% c("Area 2W") ~ "P2W", 
+                                       area %in% c("Area 1") ~ "P001", 
+                                       area %in% c("Area 101") ~ "P101", 
+                                       area %in% c("Area 104") ~ "P104", 
+                                       area %in% c("Area 102") ~ "P102", 
+                                       area %in% c("Area 103") ~ "P103",
+                                       area %in% c("Area 105") ~ "P105",
+                                       area %in% c("Area 106") ~ "P106",
+                                       area %in% c("Area 107") ~ "P107",
+                                       area %in% c("Area 108") ~ "P108",
+                                       area %in% c("Area 109") ~ "P109",
+                                       area %in% c("Area 110") ~ "P110",
+                                       area %in% c("Area 2") ~ "P002",
+                                       area %in% c("Area 142") ~ "P142", 
+                                       area %in% c("Area 3") ~ "P003",
+                                       area %in% c("Area 4") ~ "P004",
+                                       area %in% c("Area 5") ~ "P005", 
+                                       area %in% c("Area 10") ~ "P010",  
+                                       area %in% c("Area 11") ~ "P011",  
+                                       area %in% c("Area 111") ~ "P111",
+                                       area %in% c("Area 12") ~ "P012",  
+                                       area %in% c("Area 6") ~ "P006", 
+                                       area %in% c("Area 7") ~ "P007",
+                                       area %in% c("Area 8") ~ "P008",
+                                       area %in% c("Area 9") ~ "P009",
+                                       area %in% c("Area 121") ~ "P121",
+                                       area %in% c("Area 123") ~ "P123",
+                                       area %in% c("Area 124") ~ "P124",
+                                       area %in% c("Area 125") ~ "P125",
+                                       area %in% c("Area 126") ~ "P126",
+                                       area %in% c("Area 127") ~ "P127",
+                                       area %in% c("Area 21") ~ "P021",
+                                       area %in% c("Area 22") ~ "P022",
+                                       area %in% c("Area 23") ~ "P023",
+                                       area %in% c("Area 24") ~ "P024",
+                                       area %in% c("Area 25") ~ "P025",
+                                       area %in% c("Area 26") ~ "P026",
+                                       area %in% c("Area 27") ~ "P027",
+                                       area %in% c("Area 130") ~ "P130",
+                                       area %in% c("Area 23 (Barkley)") ~ "M23B",
+                                       area %in% c("Area 23 (Alberni Canal)") ~ "M23A")) %>% 
+                                       add_row(area = "Area 17", CWT_area="GSPS") %>% 
+                                       add_row(area = "Area 18", CWT_area="GSPS") %>% 
+                                       add_row(area = "Area 19 (GS)", CWT_area="GSPS") %>% 
+                                       add_row(area = "Area 28", CWT_area="GSPS") %>% 
+                                       add_row(area = "Area 29", CWT_area="GSPS") %>%
+                                       add_row(area = "Area 19 (JDF)", CWT_area="M153") %>% 
+                                       add_row(area = "Area 19", CWT_area="M153") %>% 
+                                       add_row(area = "Area 20", CWT_area="M153") %>%
+                                       add_row(area = "Area 20 (East)", CWT_area="M153") %>%
+                                       add_row(area = "Area 20 (West)", CWT_area="M153") %>%
+                                       add_row(area = "Area 2E", CWT_area="P002") %>%
+                                       add_row(area = "Area 2W", CWT_area="P002") %>%
+                                       add_row(area = "Area 2", CWT_area="P002") %>%
+                                       add_row(area = "Area 1", CWT_area="H001") %>%
+                                       add_row(area = "Area 101", CWT_area="H001") %>%
+                                       add_row(area = "Area 102", CWT_area="H02E") %>%
+                                       add_row(area = "Area 2E", CWT_area="H02E") %>%
+                                       add_row(area = "Area 142", CWT_area="H02W") %>%
+                                       add_row(area = "Area 2W", CWT_area="H02W") %>%
+                                       add_row(area = "Area 3", CWT_area="H003") %>%
+                                       add_row(area = "Area 103", CWT_area="H003") %>%
+                                       add_row(area = "Area 3", CWT_area="M068") %>%
+                                       add_row(area = "Area 103", CWT_area="M068") %>%
+                                       add_row(area = "Area 4", CWT_area="M068") %>%
+                                       add_row(area = "Area 104", CWT_area="M068") %>%
+                                       add_row(area = "Area 4", CWT_area="H004") %>%
+                                       add_row(area = "Area 104", CWT_area="H004") %>%
+                                       add_row(area = "Area 10", CWT_area="M079") %>%
+                                       add_row(area = "Area 11", CWT_area="M079") %>%
+                                       add_row(area = "Area 12", CWT_area="M079") %>%
+                                       add_row(area = "Area 110", CWT_area="M079") %>%
+                                       add_row(area = "Area 111", CWT_area="M079") %>%
+                                       add_row(area = "Area 10", CWT_area="H010") %>%
+                                       add_row(area = "Area 110", CWT_area="H010") %>%
+                                       add_row(area = "Area 10", CWT_area="M092") %>%
+                                       add_row(area = "Area 11", CWT_area="M092") %>%
+                                       add_row(area = "Area 110", CWT_area="M092") %>%
+                                       add_row(area = "Area 111", CWT_area="M092") %>% 
+                                       add_row(area = "Area 11", CWT_area="H011") %>%
+                                       add_row(area = "Area 111", CWT_area="H011") %>%
+                                       add_row(area = "Area 11", CWT_area="M094") %>%
+                                       add_row(area = "Area 111", CWT_area="M094") %>%
+                                       add_row(area = "Area 12", CWT_area="M094") %>%
+                                       add_row(area = "Area 6", CWT_area="H006") %>%
+                                       add_row(area = "Area 106", CWT_area="H006") %>%
+                                       add_row(area = "Area 7", CWT_area="H007") %>%
+                                       add_row(area = "Area 107", CWT_area="H007") %>%
+                                       add_row(area = "Area 8", CWT_area="H008") %>%
+                                       add_row(area = "Area 108", CWT_area="H008") %>%
+                                       add_row(area = "Area 9", CWT_area="H009") %>%
+                                       add_row(area = "Area 109", CWT_area="H009") %>%
+                                       add_row(area = "Area 8", CWT_area="M086") %>%
+                                       add_row(area = "Area 108", CWT_area="M086") %>%
+                                       add_row(area = "Area 9", CWT_area="M086") %>%
+                                       add_row(area = "Area 109", CWT_area="M086") %>%
+                                       add_row(area = "Area 123", CWT_area="M401") %>%
+                                       add_row(area = "Area 124", CWT_area="M401") %>%
+                                       add_row(area = "Area 125", CWT_area="M403") %>%
+                                       add_row(area = "Area 126", CWT_area="M403") %>%
+                                       add_row(area = "Area 23 (Barkley)", CWT_area="M402") %>%
+                                       add_row(area = "Area 123", CWT_area="M402") %>%
+                                       add_row(area = "Area 124", CWT_area="M402") %>%
+                                       add_row(area = "Area 24", CWT_area="M402") %>%
+                                       add_row(area = "Area 21", CWT_area="H021") %>%
+                                       add_row(area = "Area 121", CWT_area="H021") %>%
+                                       add_row(area = "Area 23 (Barkley)", CWT_area="H23B") %>%
+                                       add_row(area = "Area 123", CWT_area="H23B") %>%
+                                       add_row(area = "Area 24", CWT_area="H024") %>%
+                                       add_row(area = "Area 124", CWT_area="H024") %>%
+                                       add_row(area = "Area 24", CWT_area="M118") %>%
+                                       add_row(area = "Area 124", CWT_area="M118") %>%
+                                       add_row(area = "Area 25", CWT_area="M118") %>%
+                                       add_row(area = "Area 125", CWT_area="M118") %>%
+                                       add_row(area = "Area 25", CWT_area="H025") %>%
+                                       add_row(area = "Area 125", CWT_area="H025") %>%
+                                       add_row(area = "Area 26", CWT_area="M120") %>%
+                                       add_row(area = "Area 126", CWT_area="M120") %>%
+                                       add_row(area = "Area 25", CWT_area="M120") %>%
+                                       add_row(area = "Area 125", CWT_area="M120") %>%
+                                       add_row(area = "Area 26", CWT_area="H026") %>%
+                                       add_row(area = "Area 126", CWT_area="H026") %>%
+                                       add_row(area = "Area 27", CWT_area="H027") %>%
+                                       add_row(area = "Area 127", CWT_area="H027") %>%
+                                       add_row(area = "Area 3", CWT_area="M124") %>%
+                                       add_row(area = "Area 103", CWT_area="M124") %>%
+                                       add_row(area = "Area 4", CWT_area="M124") %>%
+                                       add_row(area = "Area 104", CWT_area="M124") %>%
+                                       add_row(area = "Area 5", CWT_area="M124") %>%
+                                       add_row(area = "Area 105", CWT_area="M124") %>%
+                                       add_row(area = "Area 6", CWT_area="M124") %>%
+                                       add_row(area = "Area 106", CWT_area="M124") %>%
+                                       add_row(area = "Area 17", CWT_area="M039") %>% 
+                                       add_row(area = "Area 16", CWT_area="M039") %>% 
+                                       mutate(region = case_when(
+                                         area %in% c("Area 13", "Area 14", "Area 15", "Area 16", "Area 13 SoG") ~ "22", 
+                                         area %in% c("Area 28", "Area 29",  "Area 17", "Area 18", "Area 19 (GS)") ~ "23", 
+                                         area %in% c("Area 19 (JDF)", "Area 19", "Area 20", "Area 20 (East)", "Area 20 (West)") ~ "24", 
+                                         area %in% c("Area 2","Area 1", "Area 101", "Area 102", "Area 142", "Area 2E", "Area 2W", "Area 3", "Area 4", "Area 104", "Area 103", "Area 5", "Area 105") ~ "25", 
+                                         area %in% c("Area 10", "Area 11", "Area 111", "Area 130", "Area 12" , "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 108", "Area 109", "Area 107") ~ "26",  
+                                         area %in% c("Area 23", "Area 123", "Area 24", "Area 124", "Area 25", "Area 125", "Area 26", "Area 126", "Area 27", "Area 127", "Area 23 (Barkley)", "Area 21", "Area 22", "Area 121") ~ "27",
+                                         area == "Area 23 (Alberni Canal)" ~ "28")) %>% 
+                                       add_row(area = "Area 13", region="61", CWT_area= "P013") %>% 
+                                       add_row(area = "Area 13 SoG", region="61", CWT_area= "P013") %>% 
+                                       add_row(area = "Area 14", region="62", CWT_area= "P014") %>% 
+                                       add_row(area = "Area 15", region="62", CWT_area= "P015") %>% 
+                                       add_row(area = "Area 16", region="62", CWT_area= "P016") %>% 
+                                       add_row(area = "Area 14", region="62", CWT_area= "M034") %>% 
+                                       add_row(area = "Area 15", region="62", CWT_area= "M034") %>% 
+                                       drop_na()
+  
+# to do - add in cwt_area and related summarise to the rest of the code
 
-
+View(fishery_simple)
+                                                                                
 irec_creel_merged_adipose_pseudo_region<- merge(irec_creel_merged_adipose_pseudo, fishery_simple, all=TRUE) %>% as_tibble()
 irec_creel_merged_adipose_pseudo_region<- irec_creel_merged_adipose_pseudo_region %>% group_by(year, month, region) %>% 
                                           summarise(sum_creel = ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
@@ -377,10 +531,11 @@ irec_creel_merged_adipose_pseudo_region<- irec_creel_merged_adipose_pseudo_regio
 View(irec_creel_merged_adipose_pseudo_region)
 #### load in mrp data
 #mrp_recoveries<-getDfoTagRecoveries(2009:2022)
-fishery_lookup_simple<-mrp_rec_recoveries %>% select(region, recovery_year, area, psc_fishery_id, area_name) %>% distinct()
+fishery_lookup_simple<-mrp_rec_recoveries %>% select(region, area, psc_fishery_id, area_name) %>% distinct()
 
 
-
+View(fishery_lookup_simple)
+View(mrp_rec_recoveries)
 #heads
 mrp_rec_recoveries_heads<- mrp_rec_recoveries %>% group_by(recovery_year, region, rec_month) %>% summarise(heads=n() ) %>% rename(month=rec_month, year=recovery_year)
 mrp_rec_recoveries_heads_filter1<- mrp_rec_recoveries %>% filter(tag_code != "Not Readable") %>%  group_by(recovery_year, region, rec_month) %>% summarise(heads=n() ) %>% rename(month=rec_month, year=recovery_year)
@@ -438,21 +593,30 @@ mrp_irec_creel_tags_average<- mrp_irec_creel_tags %>% filter(direct_heads=="not_
 mrp_irec_creel_tags<- merge(mrp_irec_creel_tags,mrp_irec_creel_tags_average, all=TRUE ) %>% as_tibble()
 
 #View(mrp_tag_recoveries)x > 2 & x < 5
-View(mrp_irec_creel_tags)
+
 mrp_irec_creel_tags<- mrp_irec_creel_tags %>% filter(region != 29) %>% 
                                                 mutate(submission_rate = 1/cwt_estimate, 
                                                      accatch = not_direct/submission_rate, 
-                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 2, 2.5, 3, 5, 8) | cwt_estimate <2  | cwt_estimate %in% c(2.01, 2.02, 2.03, 3.01, 3.02, 3.03, 4.01, 4.01, 4.03) & is.na(sum_creel) ~ "artificial sub_rate", 
+                                                     flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 2, 2.5, 3, 5, 8) | cwt_estimate <2  | cwt_estimate %in% c(2.01, 2.02, 2.03,2.04, 3.01, 3.02, 3.03, 3.04,4.01, 4.01, 4.03, 4.04) & is.na(sum_creel) ~ "artificial sub_rate", 
                                                                      
-                                                                     cwt_estimate > (round(cwt_estimate_mean_artificial, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_artificial, 2) + 0.02) ~ "average_sub_rate_w_artificial",
+                                                                     cwt_estimate > (round(cwt_estimate_mean_artificial, 2) - 0.03) & cwt_estimate < (round(cwt_estimate_mean_artificial, 2) + 0.03) ~ "average_sub_rate_w_artificial",
                                                                     
-                                                                     cwt_estimate > (round(cwt_estimate_mean, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean, 2) + 0.02) ~ "average_sub_rate",
+                                                                     cwt_estimate > (round(cwt_estimate_mean, 2) - 0.03) & cwt_estimate < (round(cwt_estimate_mean, 2) + 0.03) ~ "average_sub_rate",
                                                                      
-                                                                     cwt_estimate > (round(cwt_estimate_mean_summer, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_summer, 2) + 0.02) ~ "average_sub_rate_summer",
+                                                                     cwt_estimate > (round(cwt_estimate_mean_summer, 2) - 0.03) & cwt_estimate < (round(cwt_estimate_mean_summer, 2) + 0.03) ~ "average_sub_rate_summer",
                                                                      
-                                                                     cwt_estimate > (round(cwt_estimate_mean_creel_pres, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_creel_pres, 2) + 0.02) ~ "average_sub_rate_creel_pres",
+                                                                     cwt_estimate > (round(cwt_estimate_mean_creel_pres, 2) - 0.03) & cwt_estimate < (round(cwt_estimate_mean_creel_pres, 2) + 0.03) ~ "average_sub_rate_creel_pres",
                                                                      
-                                                                     cwt_estimate > (round(cwt_estimate_mean_month, 2) - 0.02) & cwt_estimate < (round(cwt_estimate_mean_month, 2) + 0.02) ~ "average_sub_rate_month",
+                                                                     cwt_estimate > (round(cwt_estimate_mean_month, 2) - 0.03) & cwt_estimate < (round(cwt_estimate_mean_month, 2) + 0.03) ~ "average_sub_rate_month",
+                                                                     
+                                                                     is.na(sum_creel) & region %in% c(25,26)  ~ "unknown_average_nbc_cbc",
+                                                                     
+                                                                     year < 2013 & is.na(sum_creel) ~ "unknown_average_pre_irec",
+
+                                                                     year > 2012 & year < 2018 & is.na(sum_creel) ~ "unknown_average_unlikely_irec",
+                                                                     
+                                                                     year > 2018 & is.na(sum_creel) & region %notin% c(25,26)  ~ "unknown_average_possible_irec",
+                                                                     
                                                                      
                                                                      TRUE ~ "calculated sub_rate"), 
                                                      #used_heads = submission_rate*sum_creel, 
@@ -471,10 +635,22 @@ mrp_irec_creel_tags<- mrp_irec_creel_tags %>% filter(region != 29) %>%
                                                                      flag == "average_sub_rate_creel_pres" ~ cwt_estimate_mean_creel_pres,
                                                                      flag == "average_sub_rate_summer" ~ cwt_estimate_mean_creel_pres,
                                                                      flag == "artificial sub_rate" ~ cwt_estimate,
-                                                                     flag == "calculated sub_rate" & year <2017 ~ cwt_creel_only,
-                                                                     flag == "calculated sub_rate" & year >2016 & region %notin% c(25,26) ~ cwt_creel_with_irec,
+                                                                     flag == "calculated sub_rate" & year <2019 ~ cwt_creel_only,
+                                                                     flag == "calculated sub_rate" & year >2018 & region %notin% c(25,26) ~ cwt_creel_with_irec,
                                                                      flag == "calculated sub_rate" & year >2019 & region %in% c(25,26) ~ cwt_irec_only,
-                                                                     TRUE ~ cwt_creel_only ))
+                                                                     TRUE ~ cwt_creel_only ), 
+                                                     flag_summary = case_when(
+                                                       flag == "average_sub_rate_w_artificial" ~ "average",
+                                                       flag == "average_sub_rate_month" ~ "average",
+                                                       flag == "average_sub_rate" ~ "average",
+                                                       flag == "average_sub_rate_creel_pres" ~ "average",
+                                                       flag == "average_sub_rate_summer" ~ "average",
+                                                       flag == "unknown_average_nbc_cbc"~ "average_unknown",
+                                                       flag == "unknown_average_pre_irec"~ "average_unknown",
+                                                       flag == "unknown_average_unlikely_irec" ~ "average_unknown",
+                                                       flag == "unknown_average_possible_irec" ~ "average_unknown",
+                                                       flag == "artificial sub_rate" ~ "artificial",
+                                                       flag == "calculated sub_rate" ~"calculated"))
 
 
 #mrp_irec_creel_tags$region[mrp_irec_creel_tags$region=="22"]<-"62"
@@ -517,15 +693,18 @@ ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", region
 ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year<2017, direct_heads=="not_direct"), aes(x=accatch, y= sum_creel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
-
-ggplot(mrp_irec_creel_tags_simple %>% filter( direct_heads=="not_direct"), aes(x=cwt_estimate, y= cwt_recreated, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
+#calculated only:
+ggplot(mrp_irec_creel_tags_simple %>% filter( direct_heads=="not_direct", flag_summary == "calculated" ), aes(x=cwt_estimate, y= cwt_recreated, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
+
+#### bar chart calculated vs. average
+ggplot(mrp_irec_creel_tags_simple %>% filter( direct_heads=="not_direct" ), aes( x= region, fill=as.factor(flag_summary), col=as.factor(flag_summary)))+geom_bar(position="fill")
 
 
 ggplot(mrp_irec_creel_tags_simple %>% filter(flag=="calculated sub_rate", year>2017, direct_heads=="not_direct"), aes(x=accatch, y= sum_pseudocreel, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
-ggplot(mrp_irec_creel_tags_simple %>% filter(direct_heads=="not_direct",  region %in% c(27,28)), aes(x=accatch, y= sum_creel, fill=as.factor(flag), col=as.factor(flag)))+geom_point()+geom_abline(slope=1)+
+ggplot(mrp_irec_creel_tags_simple %>% filter(direct_heads=="not_direct",  region %in% c(27,28)), aes(x=accatch, y= sum_creel, fill=as.factor(flag_summary), col=as.factor(flag_summary)))+geom_point()+geom_abline(slope=1)+
   geom_smooth(method="lm")+facet_wrap(~region, scales="free")
 
 
