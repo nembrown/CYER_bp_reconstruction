@@ -507,7 +507,7 @@ fishery_simple<- fishery_simple %>%   mutate(CWT_area = case_when(
                                          area %in% c("Area 28", "Area 29",  "Area 17", "Area 18", "Area 19 (GS)") ~ "23", 
                                          area %in% c("Area 19 (JDF)", "Area 19", "Area 20", "Area 20 (East)", "Area 20 (West)") ~ "24", 
                                          area %in% c("Area 2","Area 1", "Area 101", "Area 102", "Area 142", "Area 2E", "Area 2W", "Area 3", "Area 4", "Area 104", "Area 103", "Area 5", "Area 105") ~ "25", 
-                                         area %in% c("Area 10", "Area 11", "Area 111", "Area 130", "Area 12" , "Area 106", "Area 110", "Area 6", "Area 7", "Area 8", "Area 9", "Area 108", "Area 109", "Area 107") ~ "26",  
+                                         area %in% c("Area 106", "Area 6", "Area 7", "Area 8", "Area 107", "Area 10", "Area 110", "Area 9", "Area 109", "Area 11", "Area 111", "Area 12") ~ "26",  
                                          area %in% c("Area 23", "Area 123", "Area 24", "Area 124", "Area 25", "Area 125", "Area 26", "Area 126", "Area 27", "Area 127", "Area 23 (Barkley)", "Area 21", "Area 22", "Area 121") ~ "27",
                                          area == "Area 23 (Alberni Canal)" ~ "28")) %>% 
                                        add_row(area = "Area 13", region="61", CWT_area= "P013") %>% 
@@ -519,7 +519,8 @@ fishery_simple<- fishery_simple %>%   mutate(CWT_area = case_when(
                                        add_row(area = "Area 15", region="62", CWT_area= "M034") %>% 
                                        drop_na()
 
-fishery_simple_cwt_area<- fishery_simple %>% select(area, CWT_area) %>% distinct()
+
+
 fishery_simple_region_only<- fishery_simple %>% select(area, region) %>% distinct() 
   
 irec_creel_merged_adipose_pseudo_region<- merge(irec_creel_merged_adipose_pseudo, fishery_simple_region_only, all=TRUE) %>% as_tibble()
@@ -529,20 +530,6 @@ irec_creel_merged_adipose_pseudo_region<- irec_creel_merged_adipose_pseudo_regio
                                                     sum_pseudocreel= ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE)),
                                                     sum_irec_calibrated= ifelse(all(is.na(irec_calibrated)), NA, sum(irec_calibrated, na.rm=TRUE)),
                                                     sum_creel_kris= ifelse(all(is.na(creel_kris)), NA, sum(creel_kris, na.rm=TRUE)))
-
-
-### adding in a version with cwt_area
-irec_creel_merged_adipose_pseudo_cwt_area<- merge(irec_creel_merged_adipose_pseudo, fishery_simple_cwt_area, all=TRUE) %>% as_tibble()
-irec_creel_merged_adipose_pseudo_cwt_area<- irec_creel_merged_adipose_pseudo_cwt_area %>% group_by(year, month, CWT_area) %>% 
-  summarise(sum_creel = ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
-            sum_irec = ifelse(all(is.na(irec)), NA, sum(irec, na.rm=TRUE)), 
-            sum_pseudocreel= ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE)),
-            sum_irec_calibrated= ifelse(all(is.na(irec_calibrated)), NA, sum(irec_calibrated, na.rm=TRUE)),
-            sum_creel_kris= ifelse(all(is.na(creel_kris)), NA, sum(creel_kris, na.rm=TRUE)))
-
-
-
-
 
 #### load in mrp data
 #mrp_recoveries<-getDfoTagRecoveries(2009:2022)
@@ -571,21 +558,6 @@ mrp_rec_direct_heads$not_direct[is.na(mrp_rec_direct_heads$not_direct)] <- 0
 mrp_rec_direct_heads<- merge(mrp_rec_direct_heads, mrp_rec_recoveries_heads_not_readable, all=TRUE) %>% as_tibble()
 mrp_rec_direct_heads$not_readable[is.na(mrp_rec_direct_heads$not_readable)] <- 0
 
-#### Add in a heads method by cwt_area:
-mrp_rec_recoveries_heads_not_readable_cwt_area<- mrp_rec_recoveries %>% filter(tag_code == "Not Readable") %>%  group_by(recovery_year, area, rec_month) %>% summarise(not_readable=n() ) %>% rename(month=rec_month, year=recovery_year, CWT_area = area)
-
-mrp_rec_direct_heads_cwt_area<- mrp_rec_recoveries %>% filter(tag_code != "Not Readable") %>% 
-  mutate(direct_heads = case_when(
-    cwt_estimate < 2 ~ "direct", 
-    TRUE ~ "not_direct")) %>%  group_by(recovery_year, area, rec_month, direct_heads) %>% summarise(heads=n() ) %>% rename(month=rec_month, year=recovery_year, CWT_area=area) %>% 
-  pivot_wider(names_from = direct_heads, values_from = heads)
-
-
-mrp_rec_direct_heads_cwt_area$direct[is.na(mrp_rec_direct_heads_cwt_area$direct)] <- 0
-mrp_rec_direct_heads_cwt_area$not_direct[is.na(mrp_rec_direct_heads_cwt_area$not_direct)] <- 0
-
-mrp_rec_direct_heads_cwt_area<- merge(mrp_rec_direct_heads_cwt_area, mrp_rec_recoveries_heads_not_readable_cwt_area, all=TRUE) %>% as_tibble()
-mrp_rec_direct_heads_cwt_area$not_readable[is.na(mrp_rec_direct_heads_cwt_area$not_readable)] <- 0
 
 ########
 
@@ -597,14 +569,6 @@ mrp_tag_recoveries_simple<- mrp_tag_recoveries %>% select(recovery_id, tag_code,
                                                        
 mrp_tag_recoveries_simple_check<- mrp_tag_recoveries_simple %>% select(region, year, month, cwt_estimate, direct_heads) %>% distinct() %>% arrange(region,  year, month)  
 
-#tag recoveries by CWT_area:
-mrp_tag_recoveries_cwt_area<- mrp_rec_recoveries %>% filter( ! is.na(cwt_estimate))
-mrp_tag_recoveries_simple_cwt_area<- mrp_tag_recoveries_cwt_area %>% select(recovery_id, tag_code, recovery_year, rec_month, region, area, cwt_estimate) %>% 
-  rename(year = recovery_year, month=rec_month, CWT_area=area) %>% mutate(direct_heads = case_when(
-    cwt_estimate < 2 ~ "direct", 
-    TRUE ~ "not_direct")) 
-
-mrp_tag_recoveries_simple_check_cwt_area<- mrp_tag_recoveries_simple_cwt_area %>% select(CWT_area,  region, year, month, cwt_estimate, direct_heads) %>% distinct() %>% arrange(region, CWT_area, year, month)  
 
 head(mrp_tag_recoveries_simple_check_mean_year)
 #means by region
@@ -620,17 +584,6 @@ mrp_tag_recoveries_simple_check_mean_year_include_artificial<- mrp_tag_recoverie
 #this one doesn't make sense since it didn't just start in 2009 - there are earlier years... take out
 #mrp_tag_recoveries_simple_check_mean_month_all_years<-mrp_tag_recoveries_simple_check %>%  group_by(region, month) %>%  mutate(cwt_estimate_mean_month= slide_mean(cwt_estimate,na_rm=TRUE, before=Inf))  
 
-#means by cwt_area and not region
-mrp_tag_recoveries_simple_check_cwt_area_mean_year<- mrp_tag_recoveries_simple_check_cwt_area %>% filter(cwt_estimate %notin% c(1, 1.01, 2, 2.5, 3, 5, 8,2.01, 2.02, 2.03,2.04, 3.01, 3.02, 3.03, 3.04,4.01, 4.01, 4.03, 4.04 ), direct_heads == "not_direct") %>%  group_by(CWT_area, year) %>%  summarise(cwt_estimate_mean= mean(cwt_estimate, na.rm=TRUE), n=n())  
-mrp_tag_recoveries_simple_check_cwt_area_mean_year<- mrp_tag_recoveries_simple_check_cwt_area_mean_year %>% mutate(cwt_estimate_mean = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean)) %>% select(-n)
-
-mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only<- mrp_tag_recoveries_simple_check_cwt_area %>% filter(cwt_estimate %notin% c(1,2,3,4,5,8, 2.5), cwt_estimate >2, month %in% c(5,6,7,8,9)) %>%  group_by(CWT_area, year) %>%  summarise(cwt_estimate_mean_summer= mean(cwt_estimate, na.rm=TRUE), n=n())  
-mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only<- mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only %>% mutate(cwt_estimate_mean_summer = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean_summer)) %>% select(-n)
-
-mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial<-mrp_tag_recoveries_simple_check_cwt_area %>% filter(direct_heads=="not_direct") %>%  group_by(CWT_area, year) %>%  summarise(cwt_estimate_mean_artificial= mean(cwt_estimate, na.rm=TRUE), n=n())  
-mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial<- mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial %>% mutate(cwt_estimate_mean_artificial = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean_artificial)) %>% select(-n)
-
-
 #mrp_tag_recoveries_simple_check_cwt_area_mean_month_all_years<-mrp_tag_recoveries_simple_check_cwt_area %>%  group_by(CWT_area, month) %>%  summarise(cwt_estimate_mean_month= mean(cwt_estimate, na.rm=TRUE))  
 
 mrp_irec_creel<-merge(irec_creel_merged_adipose_pseudo_region, mrp_rec_direct_heads, all=TRUE) %>% as_tibble()
@@ -638,13 +591,6 @@ mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year, 
 mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year_summer_only, all=TRUE) %>% as_tibble()
 mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_year_include_artificial, all=TRUE) %>% as_tibble()
 #mrp_irec_creel<-merge(mrp_irec_creel,mrp_tag_recoveries_simple_check_mean_month_all_years, all=TRUE) %>% as_tibble()
-
-## combine pesudo with mrp_rec_direct heads #CWT area
-mrp_irec_creel_cwt_area<-merge(irec_creel_merged_adipose_pseudo_cwt_area, mrp_rec_direct_heads_cwt_area, all=TRUE) %>% as_tibble()
-mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year, all=TRUE) %>% as_tibble()
-mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only, all=TRUE) %>% as_tibble()
-mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial, all=TRUE) %>% as_tibble()
-#mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_month_all_years, all=TRUE) %>% as_tibble()
 
 
 
@@ -713,9 +659,7 @@ mrp_irec_creel_tags<- mrp_irec_creel_tags %>% filter(region != 29) %>%
                                                                      flag == "unknown_average" ~ cwt_estimate_mean_creel_pres,
                                                                      flag == "unknown_average_no_creel" ~ cwt_estimate,
                                                                      flag == "artificial sub_rate" ~ cwt_estimate,
-                                                                     flag == "calculated sub_rate" & year <2019 ~ cwt_creel_only,
-                                                                     flag == "calculated sub_rate" & year >2018 & region %notin% c(25,26) ~ cwt_creel_with_irec,
-                                                                     flag == "calculated sub_rate" & year >2019 & region %in% c(25,26) ~ cwt_irec_only,
+                                                                     flag == "calculated sub_rate" & year >2019 & region %in% c("25", "26" ) ~ cwt_irec_only,
                                                                      TRUE ~ cwt_creel_only ), 
                                                      flag_summary = case_when(
                                                        flag == "average_sub_rate_w_artificial" ~ "average",
@@ -728,24 +672,121 @@ mrp_irec_creel_tags<- mrp_irec_creel_tags %>% filter(region != 29) %>%
                                                        flag == "artificial sub_rate" ~ "artificial",
                                                        flag == "calculated sub_rate" ~"calculated"))
 
+
+
+
+#### to-do - take out where creel and psuedocreel = 0 call that NA, take out artifical sub rate
+
+mrp_irec_creel_tags_plotting<- mrp_irec_creel_tags %>% select(-cwt_estimate, -submission_rate, -not_direct, -direct, -sum_irec, -recovery_id, -tag_code) %>% pivot_longer(cols=c(sum_creel, sum_pseudocreel, accatch), names_to = "source", values_to = "values")
+mrp_irec_creel_tags_plotting<- mrp_irec_creel_tags_plotting %>%  mutate(year_month = lubridate::make_date(year, month)) %>% distinct()
+
+
+mrp_irec_creel_tags_simple<- mrp_irec_creel_tags %>% select(-recovery_id, -tag_code) %>% distinct()
+
+#mrp_irec_creel_tags_simple %>% group_by(year, region) %>%  get_dupes(year, region, cwt_estimate) %>% head()
+
+
+
+mrp_irec_creel_tags_simple_diff<-mrp_irec_creel_tags_simple %>% mutate(diff_creel=accatch - sum_creel,
+                                                                       diff_irec =accatch - sum_irec, 
+                                                                       diff_pseudo = accatch - sum_pseudocreel,
+                                                                       diff_cwt = cwt_recreated - cwt_estimate)
+
+
+
+
+
+
+# CWT_area ----------------------------------------------------------------
+fishery_simple_cwt_area<- fishery_simple %>% select(area, CWT_area) %>% distinct() %>% 
+  mutate(CWT_strata = case_when(
+    area %in% c("Area 106", "Area 6") ~ "26.6",  
+    area %in% c("Area 7", "Area 8", "Area 107") ~ "26.7", 
+    area %in% c("Area 10", "Area 110", "Area 9", "Area 109") ~ "26.9",  
+    area %in% c("Area 11", "Area 111", "Area 12") ~ "26.11", 
+    TRUE ~ NA_character_
+  )) %>% drop_na()
+
+fishery_simple_cwt_area_strata<- fishery_simple_cwt_area %>% select(CWT_area, CWT_strata)
+
+### adding in a version with cwt_area
+irec_creel_merged_adipose_pseudo_cwt_area<- merge(irec_creel_merged_adipose_pseudo, fishery_simple_cwt_area, all.y=TRUE) %>% as_tibble()
+irec_creel_merged_adipose_pseudo_cwt_area<- irec_creel_merged_adipose_pseudo_cwt_area %>% group_by(year, month, CWT_strata) %>% 
+  summarise(sum_creel = ifelse(all(is.na(creel)), NA, sum(creel, na.rm=TRUE)), 
+            sum_irec = ifelse(all(is.na(irec)), NA, sum(irec, na.rm=TRUE)), 
+            sum_pseudocreel= ifelse(all(is.na(pseudocreel)), NA, sum(pseudocreel, na.rm=TRUE)),
+            sum_irec_calibrated= ifelse(all(is.na(irec_calibrated)), NA, sum(irec_calibrated, na.rm=TRUE)),
+            sum_creel_kris= ifelse(all(is.na(creel_kris)), NA, sum(creel_kris, na.rm=TRUE)))
+
+
+
+#### Add in a heads method by cwt_strata: only for 26
+mrp_rec_recoveries_area<- mrp_rec_recoveries %>% rename(CWT_area = area)
+mrp_rec_recoveries_strata<- merge(mrp_rec_recoveries_area, fishery_simple_cwt_area_strata) 
+
+mrp_rec_recoveries_heads_not_readable_cwt_area<- mrp_rec_recoveries_strata %>% filter(tag_code == "Not Readable") %>%  group_by(recovery_year, CWT_strata, rec_month) %>% summarise(not_readable=n() ) %>% rename(month=rec_month, year=recovery_year)
+
+mrp_rec_direct_heads_cwt_area<- mrp_rec_recoveries_strata %>% filter(tag_code != "Not Readable") %>% 
+  mutate(direct_heads = case_when(
+    cwt_estimate < 2 ~ "direct", 
+    TRUE ~ "not_direct")) %>%  group_by(recovery_year, CWT_strata, rec_month, direct_heads) %>% summarise(heads=n() ) %>% rename(month=rec_month, year=recovery_year) %>% 
+  pivot_wider(names_from = direct_heads, values_from = heads)
+
+
+mrp_rec_direct_heads_cwt_area$direct[is.na(mrp_rec_direct_heads_cwt_area$direct)] <- 0
+mrp_rec_direct_heads_cwt_area$not_direct[is.na(mrp_rec_direct_heads_cwt_area$not_direct)] <- 0
+
+mrp_rec_direct_heads_cwt_area<- merge(mrp_rec_direct_heads_cwt_area, mrp_rec_recoveries_heads_not_readable_cwt_area, all.x=TRUE) %>% as_tibble()
+mrp_rec_direct_heads_cwt_area$not_readable[is.na(mrp_rec_direct_heads_cwt_area$not_readable)] <- 0
+
+#tag recoveries by CWT_area:
+mrp_tag_recoveries_cwt_area<- mrp_rec_recoveries_strata %>% filter( ! is.na(cwt_estimate))
+mrp_tag_recoveries_simple_cwt_area<- mrp_tag_recoveries_cwt_area %>% select(recovery_id, tag_code, recovery_year, rec_month, region, CWT_strata, cwt_estimate) %>% 
+  rename(year = recovery_year, month=rec_month) %>% mutate(direct_heads = case_when(
+    cwt_estimate < 2 ~ "direct", 
+    TRUE ~ "not_direct")) 
+
+mrp_tag_recoveries_simple_check_cwt_area<- mrp_tag_recoveries_simple_cwt_area %>% select(CWT_strata,  region, year, month, cwt_estimate, direct_heads) %>% distinct() %>% arrange(region, CWT_strata, year, month)  
+
+#means by cwt_area and not region
+mrp_tag_recoveries_simple_check_cwt_area_mean_year<- mrp_tag_recoveries_simple_check_cwt_area %>% filter(cwt_estimate %notin% c(1, 1.01, 2, 2.5, 3, 5, 8,2.01, 2.02, 2.03,2.04, 3.01, 3.02, 3.03, 3.04,4.01, 4.01, 4.03, 4.04 ), direct_heads == "not_direct") %>%  group_by(CWT_strata, year) %>%  summarise(cwt_estimate_mean= mean(cwt_estimate, na.rm=TRUE), n=n())  
+mrp_tag_recoveries_simple_check_cwt_area_mean_year<- mrp_tag_recoveries_simple_check_cwt_area_mean_year %>% mutate(cwt_estimate_mean = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean)) %>% select(-n)
+
+mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only<- mrp_tag_recoveries_simple_check_cwt_area %>% filter(cwt_estimate %notin% c(1,2,3,4,5,8, 2.5), cwt_estimate >2, month %in% c(5,6,7,8,9)) %>%  group_by(CWT_strata, year) %>%  summarise(cwt_estimate_mean_summer= mean(cwt_estimate, na.rm=TRUE), n=n())  
+mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only<- mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only %>% mutate(cwt_estimate_mean_summer = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean_summer)) %>% select(-n)
+
+mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial<-mrp_tag_recoveries_simple_check_cwt_area %>% filter(direct_heads=="not_direct") %>%  group_by(CWT_strata, year) %>%  summarise(cwt_estimate_mean_artificial= mean(cwt_estimate, na.rm=TRUE), n=n())  
+mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial<- mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial %>% mutate(cwt_estimate_mean_artificial = case_when(n == 1 ~ NA_real_, TRUE~ cwt_estimate_mean_artificial)) %>% select(-n)
+
+
+
 ### cwt_area version:
+## combine pesudo with mrp_rec_direct heads #CWT area
+mrp_irec_creel_cwt_area<-merge(irec_creel_merged_adipose_pseudo_cwt_area, mrp_rec_direct_heads_cwt_area, all=TRUE) %>% as_tibble()
+mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year, all=TRUE) %>% as_tibble()
+mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year_summer_only, all=TRUE) %>% as_tibble()
+mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_year_include_artificial, all=TRUE) %>% as_tibble()
+#mrp_irec_creel_cwt_area<-merge(mrp_irec_creel_cwt_area,mrp_tag_recoveries_simple_check_cwt_area_mean_month_all_years, all=TRUE) %>% as_tibble()
+
+
+
 mrp_irec_creel_tags_cwt_area<-merge(mrp_irec_creel_cwt_area, mrp_tag_recoveries_simple_cwt_area, all.y =TRUE) %>% as_tibble()
 mrp_irec_creel_tags_cwt_area
 
 
 ### cwt_area version:
 mrp_irec_creel_tags_average_cwt_area<- mrp_irec_creel_tags_cwt_area %>% filter(direct_heads=="not_direct", !is.na(sum_creel)) %>%  
-  select(CWT_area, year, month, sum_creel, cwt_estimate) %>% 
-  distinct() %>% group_by(CWT_area, year) %>%  
+  select(CWT_strata, year, month, sum_creel, cwt_estimate) %>% 
+  distinct() %>% group_by(CWT_strata, year) %>%  
   summarise(cwt_estimate_mean_creel_pres= mean(cwt_estimate, na.rm=TRUE)) 
 
 mrp_irec_creel_tags_cwt_area<- merge(mrp_irec_creel_tags_cwt_area,mrp_irec_creel_tags_average_cwt_area, all=TRUE ) %>% as_tibble()
 mrp_irec_creel_tags_cwt_area_simple1<- mrp_irec_creel_tags_cwt_area %>% select(-recovery_id, -tag_code) %>% distinct()
 
 
-mrp_irec_creel_tags_cwt_area_dupes<- mrp_irec_creel_tags_cwt_area_simple1 %>% group_by(year, CWT_area) %>%  
-  get_dupes(year, CWT_area, cwt_estimate) %>% 
-  select(year, CWT_area, month, cwt_estimate) %>% 
+mrp_irec_creel_tags_cwt_area_dupes<- mrp_irec_creel_tags_cwt_area_simple1 %>% group_by(year, CWT_strata) %>%  
+  get_dupes(year, CWT_strata, cwt_estimate) %>% 
+  select(year, CWT_strata, month, cwt_estimate) %>% 
   filter(cwt_estimate!= 1) %>% 
   mutate(dupe_flag = "yes")
 
@@ -753,11 +794,10 @@ mrp_irec_creel_tags_cwt_area_dupes<- mrp_irec_creel_tags_cwt_area_simple1 %>% gr
 mrp_irec_creel_tags_cwt_area<- merge(mrp_irec_creel_tags_cwt_area, mrp_irec_creel_tags_cwt_area_dupes, all=TRUE)
 mrp_irec_creel_tags_cwt_area$dupe_flag[is.na(mrp_irec_creel_tags_cwt_area$dupe_flag)]<- "no"
 
-####
 
 
 ### cwt_area_version
-mrp_irec_creel_tags_cwt_area<- mrp_irec_creel_tags_cwt_area %>% filter(region != 29) %>% 
+mrp_irec_creel_tags_cwt_area<- mrp_irec_creel_tags_cwt_area  %>% 
   mutate(submission_rate = 1/cwt_estimate, 
          accatch = not_direct/submission_rate, 
          flag= case_when(submission_rate %in% c(0.5, 1, 0.25) | cwt_estimate %in% c(1, 1.01, 2, 2.5, 3, 5, 8) | cwt_estimate <2  | cwt_estimate %in% c(2.01, 2.02, 2.03,2.04, 3.01, 3.02, 3.03, 3.04,4.01, 4.01, 4.03, 4.04) & is.na(sum_creel) ~ "artificial sub_rate", 
@@ -799,9 +839,7 @@ mrp_irec_creel_tags_cwt_area<- mrp_irec_creel_tags_cwt_area %>% filter(region !=
            flag == "unknown_average" ~ cwt_estimate_mean_creel_pres,
            flag == "unknown_average_no_creel" ~ cwt_estimate,
            flag == "artificial sub_rate" ~ cwt_estimate,
-           flag == "calculated sub_rate" & year <2019 ~ cwt_creel_only,
-           flag == "calculated sub_rate" & year >2018 & region %notin% c(25,26) ~ cwt_creel_with_irec,
-           flag == "calculated sub_rate" & year >2019 & region %in% c(25,26) ~ cwt_irec_only,
+           flag == "calculated sub_rate" & year >2019 & region %in% c(25) ~ cwt_irec_only,
            TRUE ~ cwt_creel_only ), 
          flag_summary = case_when(
            flag == "average_sub_rate_w_artificial" ~ "average",
@@ -817,24 +855,8 @@ mrp_irec_creel_tags_cwt_area<- mrp_irec_creel_tags_cwt_area %>% filter(region !=
 
 
 
-#### to-do - take out where creel and psuedocreel = 0 call that NA, take out artifical sub rate
 
-mrp_irec_creel_tags_plotting<- mrp_irec_creel_tags %>% select(-cwt_estimate, -submission_rate, -not_direct, -direct, -sum_irec, -recovery_id, -tag_code) %>% pivot_longer(cols=c(sum_creel, sum_pseudocreel, accatch), names_to = "source", values_to = "values")
-mrp_irec_creel_tags_plotting<- mrp_irec_creel_tags_plotting %>%  mutate(year_month = lubridate::make_date(year, month)) %>% distinct()
-
-
-mrp_irec_creel_tags_simple<- mrp_irec_creel_tags %>% select(-recovery_id, -tag_code) %>% distinct()
-
-#mrp_irec_creel_tags_simple %>% group_by(year, region) %>%  get_dupes(year, region, cwt_estimate) %>% head()
-
-
-
-mrp_irec_creel_tags_simple_diff<-mrp_irec_creel_tags_simple %>% mutate(diff_creel=accatch - sum_creel,
-                                                                       diff_irec =accatch - sum_irec, 
-                                                                       diff_pseudo = accatch - sum_pseudocreel,
-                                                                       diff_cwt = cwt_recreated - cwt_estimate)
-
-head( mrp_irec_creel_tags_simple_diff)
+head( mrp_irec_creel_tags)
 ##### cwt_area:
 mrp_irec_creel_tags_plotting_cwt_area<- mrp_irec_creel_tags_cwt_area %>% select(-cwt_estimate, -submission_rate, -not_direct, -direct, -sum_irec, -recovery_id, -tag_code) %>% pivot_longer(cols=c(sum_creel, sum_pseudocreel, accatch), names_to = "source", values_to = "values")
 mrp_irec_creel_tags_plotting_cwt_area<- mrp_irec_creel_tags_plotting_cwt_area %>%  mutate(year_month = lubridate::make_date(year, month)) %>% distinct()
@@ -848,12 +870,15 @@ mrp_irec_creel_tags_simple_diff_cwt_area<-mrp_irec_creel_tags_simple_cwt_area %>
                                                                        diff_cwt = cwt_recreated - cwt_estimate)
 
 
-head(mrp_irec_creel_tags_simple_diff_cwt_area)
+View(mrp_irec_creel_tags_simple)
 
 theme_set(theme_bw())
 
 #ggplot(mrp_irec_creel_tags_plotting,aes(x=year_month, y=values, color=source, group=source))+ geom_point(size=3, alpha=.5) +  
  # facet_wrap(~region, scales="free") + geom_line()+theme(legend.position = "bottom")
+
+
+ggplot(mrp_irec_creel_tags_simple_cwt_area %>% filter( direct_heads=="not_direct", flag_summary == "calculated"), aes(x=month, y=sum_creel, fill=as.factor(CWT_strata), col=as.factor(CWT_strata)))+geom_point()+facet_wrap(~CWT_strata, scales="free")
 
 
 ggplot(mrp_irec_creel_tags_simple %>% filter(region ==28), aes(x=cwt_estimate, y= cwt_creel_only, fill=as.factor(year), col=as.factor(year)))+geom_point()+geom_abline(slope=1)+
@@ -885,8 +910,8 @@ ggplot(mrp_irec_creel_tags_simple_cwt_area %>% filter( direct_heads=="not_direct
   geom_smooth(method="lm")+facet_wrap(~CWT_area, scales="free")
 
 #cwt_area
-ggplot(mrp_irec_creel_tags_simple_cwt_area %>% filter( direct_heads=="not_direct", flag_summary == "calculated" ), aes(x=cwt_estimate, y= cwt_recreated, fill=as.factor(region), col=as.factor(region)))+geom_point()+geom_abline(slope=1)+
-  geom_smooth(method="lm")+facet_wrap(~region, scales="free")
+ggplot(mrp_irec_creel_tags_simple_cwt_area %>% filter( direct_heads=="not_direct", flag_summary == "calculated" ), aes(x=cwt_estimate, y= cwt_recreated, fill=as.factor(CWT_strata), col=as.factor(CWT_strata)))+geom_point()+geom_abline(slope=1)+
+  geom_smooth(method="lm")+facet_wrap(~CWT_strata, scales="free")
 
 
 #### irec vs creel only 
